@@ -1,5 +1,3 @@
 * text=auto eol=lf
 *.aml binary
-*.kext/** binary
-**/MacOS/* binary
-**/_CodeSignature/* binary
+**/dist/** binary
