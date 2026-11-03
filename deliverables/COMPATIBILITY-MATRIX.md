@@ -11,6 +11,7 @@ The evidence level is the strongest one available. **DEMONSTRATED** means checke
 | 5090 BAR1 32 GB (firmware-sized, `nvidia-smi`) | `NVRM::placeLargeBar1` | **Highest GPU risk** | Only 8 GB BAR1 proven; 16 GB resize failures reported (`NVRM.cpp:1043`) | Test 1 in `a1-nvidia/macos-gpu-tests.md` |
 | 5090 Metal rendering correctness | Metal plugin → AIR→SPIR-V → NVK/NAK | Unknown | PROJECT CLAIM (5060 automated; 5070/5080 reports) | Pixel-diff tests needed; a device listing is not acceptance |
 | 5090 compute | Same stack | Unknown | PROJECT CLAIM | CUDA not available (officially ended at 10.2) |
+| 5090 for local AI models (user requirement 2026-11-03) | **No CUDA:** NVIDIA's CUDA user-space is closed source and ships for Linux/Windows only (last macOS release: 10.2, 2019), so it cannot be built here. Candidate instead: llama.cpp **Vulkan** backend on the driver's Mesa NVK, or its **Metal** backend | HYPOTHESIS; test after T-BOOT/T-DISP pass | llama.cpp Vulkan runs on NVK under Linux (public); untested on this macOS stack | Expect it to be well below CUDA speed if it works at all. Proven path today: CUDA in Windows/WSL2 on this same machine |
 | 5090 media decode/encode | Closed `libnvdec`/`libnvenc` | Reported broken (#425) | PROJECT/ISSUE report without logs | 4 NVDEC/NVENC on GB202 vs 1 on GB206; the A1 patch adds instance diagnostics |
 | 5090 sleep/wake | `nv_xnu_power.cpp` | Unlikely | Tested only on RTX 5050; VRAM copy is uncapped (32 GB) | Platform has no S3 (see below) |
 | 5090 HDMI/DP audio 10DE:22E8 | NMHDA | Unknown | PROJECT CLAIM | — |
