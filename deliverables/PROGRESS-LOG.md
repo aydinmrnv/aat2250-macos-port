@@ -91,18 +91,7 @@
 - Building IntelBluetoothFirmware/Lilu from source was refused by the permission system ("code from external"), so it needs the user's OK.
 - The x86_64 IOPCIFamily symbol and size check against Tahoe 26.7.2 needs the KDK or the installer's kernel collection.
 
-**Non-destructive copy:** started copying D:\{backup files, MSFS 2024 add_ons, Virtual Machines, BeamNG Drive} → `E:\D-migration\` with robocopy (no deletes). Logs are in `evidence/d-to-e-copy/`.
-- **D:→E: copy verified complete** (robocopy exit 1 = "files copied"). Results:
-
-  | Folder | Files | Size |
-  |---|---|---|
-  | MSFS 2024 add_ons | 1148/1148 | 0.99 GB |
-  | Virtual Machines | 63/63 | 51.90 GB |
-  | BeamNG Drive | 13982/13982 | 48.22 GB |
-  | backup files | 54 dirs | 0 files |
-
-  - 0 failures in every log. D: is unchanged.
-  - Still to move with their own tools (user or admin): XboxGames/WindowsApps (Xbox app), SteamLibrary (Steam), WSL NVIDIA-Workbench (`wsl --manage --move`), pagefile (System Properties).
+**Non-destructive copy:** the user's plain folders on D: were copied to another internal disk with robocopy (no deletes). All copies verified complete with 0 failures; D: is unchanged. Folder list and logs are kept privately. App-managed libraries (Store/Steam), a WSL distro and the pagefile are left for the user to move with their own tools.
 - VMD phase 2 (interrupt routing, `vmdbridge=2`) written and building (`VMDInterrupts.cpp`). Not yet reviewed or run.
 - **VMD driver reviewed twice and fixed** (`vmd-driver/REVIEW-phase0-1.md`, `REVIEW-phase2.md`).
   - Phase 1: only the ABAR range is advertised, CFGBAR length is checked, the PM tree is joined, MSI length is read from control.
@@ -142,3 +131,31 @@
 - Build is clean. sha256 `ad72ef6b…98bb`. Self-review notes are in `usb4-driver/README.md`.
 - Private config: added the USB4Probe entry and `-usb4probe`; ocvalidate reports no issues. Kext and config are copied to the stick (F:) and hash-verified.
 - Runbook: added the `usb4probe.txt` capture and a pass row.
+
+## 2026-11-03: CUDA step C0 (static analysis), see `cuda/C0-REPORT.md`
+- Downloaded NVIDIA Linux driver 615.78.08 from download.nvidia.com; its SHA-256 matches NVIDIA's published sum. Extracted it without running the installer.
+- libcuda findings: it links only glibc (248 imports), has no ELF TLS, is x86_64, and is the same RM version as the macOS NVRM kext.
+  - All RM escapes it uses are reachable through nullmoth's generic `rm_ioctl` path.
+  - Gaps: 7 Linux-layer escapes (small) and UVM (absent, large).
+- **Licence issue:** NVIDIA LICENSE §2.2 forbids disassembly. The ioctl scan used `objdump -d`, which breached that. The disassembly was deleted, and the report relies only on ELF metadata and open-source definitions. No further disassembly will be done.
+- Verdict: no static blocker. All runtime gates wait for the 5090 bring-up.
+
+## 2026-11-03: CUDA step C3 part 1, `cuda-shim` (ELF loader + glibc shim)
+- `cuda-shim/`: an ELF loader and a glibc shim covering all 248 libcuda imports. Process creation, sockets and eventfd are refused and logged. Build is clean.
+- Run on the Mac Studio under Rosetta with the unmodified libcuda 615.78.08:
+  - **L1 PASS:** loads, relocates and the constructor runs.
+  - **L2 PASS:** `cuGetErrorString` gives NVIDIA's text; `cuDriverGetVersion` returns 13040.
+  - **L3 PASS:** `cuInit` returns cleanly.
+- Open: `cuInit` returns 304 OPERATING_SYSTEM before any device access. Right after it sets up process-shared locks, no shim call fails, so the cause is most likely a direct Linux syscall.
+  - Proposed next step: a reference `strace` of cuInit on Linux in an ephemeral Docker container. Needs approval.
+- Tools added: `CUDASHIM_TRACE=2` gives an ltrace-style call log at the interface (no disassembly). The `getenv` and formatted-string traces surfaced libcuda's own log line.
+
+## 2026-11-03: CUDA L3 matched to Linux
+- Ran a reference `strace` of `cuInit` on Linux: a throwaway ubuntu:24.04 container, no GPU. It returns 100 NO_DEVICE. Trace kept in `evidence/cuda/`.
+- Cause of the macOS 304: libcuda `dlsym`s `pipe2`, `accept4`, `sched_getcpu` and the affinity functions; the shim returned NULL, so its eventfd and worker-thread setup failed.
+- Added those functions, eventfd emulation (socketpair) and Linux `/proc` readlink semantics.
+- `cuInit` now returns **100 CUDA_ERROR_NO_DEVICE** on the Mac Studio, following the same path as on Linux. Stable over 3 runs.
+- Docker Desktop side issue:
+  - Launching it from the Claude app put its AF_UNIX sockets in the app's virtualized AppData, and Windows couldn't open them afterwards. The 24 Oct `run.stale-*` folders show the same thing happened before.
+  - Fix: the broken folders were renamed `*.stale-20261103b` (nothing deleted), and the user starts Docker from the Start menu.
+  - Leftover: the ubuntu:24.04 image (~78 MB) is still in Docker.

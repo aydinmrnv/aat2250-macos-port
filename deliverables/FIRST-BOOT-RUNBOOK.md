@@ -44,7 +44,7 @@
 ## Step 2: before plugging it into the Alienware (your decisions; nothing here is done by Claude)
 - **BitLocker:** run `manage-bde -status` in an admin terminal. If any volume is protected, make sure you can get to the recovery key, and suspend BitLocker before changing any firmware setting.
 - **Secure Boot:** OpenCore with this config will not start while firmware Secure Boot is on (see `a2-platform/platform-analysis.md` §4 for the options and their BitLocker risk). Turning it off is a firmware change that only you make, and it can be turned back on afterwards.
-- **Backups:** the VMD driver only reads in this test, but have backups of C: and of D:. D:'s plain folders are already copied to `E:\D-migration`.
+- **Backups:** the VMD driver only reads in this test, but have backups of C: and of D:. D:'s plain folders are already copied to another disk.
 - **Do not change** VMD/RAID/AHCI, VT-d or anything else.
 
 ## Step 3: the test boot
