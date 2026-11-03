@@ -1,0 +1,105 @@
+From 9c764471fcf41004edf2f932c566580d72219e69 Mon Sep 17 00:00:00 2001
+From: aydinmrnv <97070767+aydinmrnv@users.noreply.github.com>
+Date: Mon, 2 Nov 2026 11:35:16 -0800
+Subject: [PATCH 2/2] NVRM video engine instances: address independent review
+
+- Stop stating that GB203 lacks NVENC0: the #105 list, read as NV2080
+  engine types, contradicts RM's GB203 class table (NVENC0-1), so its
+  numbering is unverified. Comment, test docstring and check reworded.
+- The test now checks the C loop itself (clamp to kEngineListMax, loop
+  over the clamped count, decoder/encoder mask routing); the Python
+  replay alone would not catch a dropped clamp or swapped masks.
+  Verified by mutating each in a copy: the test fails.
+- drift_check accepts a flat directory holding the two headers, so the
+  610.57.04 headers are checked too, not only the embedded snapshot.
+- "unknown" log line no longer says the RM did not answer when it
+  answered with an empty list.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ kexts/NVRM/NVRM.cpp                     |  2 +-
+ kexts/NVRM/nvrm_fbinfo.cpp              |  5 +++--
+ tools/test_gpu_profile_video_engines.py | 22 ++++++++++++++++++----
+ 3 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/kexts/NVRM/NVRM.cpp b/kexts/NVRM/NVRM.cpp
+index 1cacdec..1058196 100644
+--- a/kexts/NVRM/NVRM.cpp
++++ b/kexts/NVRM/NVRM.cpp
+@@ -1313,7 +1313,7 @@ void NVRM::publishGpuProfile()
+         staticBar1 ? "static-bar1" : "by-handle");
+     if (engines) LOG("gpu profile: video engine instances NVDEC mask 0x%x, NVENC mask 0x%x (%u engines listed)",
+                      (unsigned)decMask, (unsigned)encMask, (unsigned)engines);
+-    else LOG("gpu profile: video engine instances unknown (GET_ENGINES_V2 did not answer)");
++    else LOG("gpu profile: video engine instances unknown (GET_ENGINES_V2 failed or listed no engines)");
+ }
+ 
+ void NVRM::readBARs()
+diff --git a/kexts/NVRM/nvrm_fbinfo.cpp b/kexts/NVRM/nvrm_fbinfo.cpp
+index deff701..baff83c 100644
+--- a/kexts/NVRM/nvrm_fbinfo.cpp
++++ b/kexts/NVRM/nvrm_fbinfo.cpp
+@@ -53,8 +53,9 @@ struct FbiEngines  { NvU32 engineCount; NvU32 engineList[kEngineListMax]; };
+ /*
+  * Which video engine instances the RM reports for this GPU (NV2080_ENGINE_TYPE_*, class/cl2080_notification.h; the
+  * values are the same in 610.57.04 and 615.78.08). The class list above only says which video CLASS the chip has, the
+- * same 0xCFB0/0xCFB7 on every GB20x, not which instances survived floor-sweeping: an RTX 5070 Ti (GB203) reported
+- * NVENC1 and NVENC2 but no NVENC0 (#105), and the class tables list four NVDEC and four NVENC for GB202 against one of
++ * same 0xCFB0/0xCFB7 on every GB20x, not which instances a board exposes. An RTX 5070 Ti (GB203) engine list in #105
++ * reads as NVENC1+2 without NVENC0, against RM's GB203 table (NVENC0-1), so its numbering is unverified; this log is
++ * meant to settle that. The class tables list four NVDEC and four NVENC for GB202 against one of
+  * each for GB206. NVENC3 does not follow NVENC2 (0x3f, not 0x1e). Read-only: nothing here selects an engine.
+  */
+ enum { kVidDec = 0, kVidEnc = 1 };
+diff --git a/tools/test_gpu_profile_video_engines.py b/tools/test_gpu_profile_video_engines.py
+index a372d73..ad0586c 100644
+--- a/tools/test_gpu_profile_video_engines.py
++++ b/tools/test_gpu_profile_video_engines.py
+@@ -2,8 +2,9 @@
+ """The GPU profile's video engine instances (nvdec-instances / nvenc-instances) are decoded with NVIDIA's own engine ids.
+ 
+ Why: the profile's class-nvdec / class-nvenc are the same 0xCFB0 / 0xCFB7 on every consumer Blackwell chip, so they cannot
+-say which NVDEC or NVENC instances a given card has. An RTX 5070 Ti (GB203) reported NVENC1 and NVENC2 but no NVENC0
+-(#105, engine list "1 9 d e 13 1c 1d 22 26 2c 33"), and RM's class tables list four NVDEC and four NVENC for GB202
++say which NVDEC or NVENC instances a given card has. An RTX 5070 Ti (GB203) reported the engine list
++"1 9 d e 13 1c 1d 22 26 2c 33" (#105); read as NV2080 engine types that is NVENC1+2 without NVENC0, which contradicts
++RM's GB203 class table (NVENC0-1), so the numbering of that list is unverified. RM's class tables list four NVDEC and four NVENC for GB202
+ (RTX 5090) against one of each for GB206 (RTX 5060, the tested card). Issue #425 (RTX 5090: no hardware decode) has no
+ logs that say which instances exist; this instrumentation makes the answer visible in ioreg and the kernel log.
+ 
+@@ -50,6 +51,8 @@ def drift_check(tree):
+     """Re-read NVIDIA's headers from a source tree, if one is given, so the snapshot above cannot drift silently."""
+     notif = tree / 'src/common/sdk/nvidia/inc/class/cl2080_notification.h'
+     gpu = tree / 'src/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h'
++    if not notif.exists() and (tree / 'cl2080_notification.h').exists():   # a flat directory of the two headers
++        notif, gpu = tree / 'cl2080_notification.h', tree / 'ctrl2080gpu.h'
+     if not notif.exists() or not gpu.exists():
+         print(f'note: {tree} has no cl2080_notification.h / ctrl2080gpu.h - embedded snapshot only')
+         return
+@@ -108,10 +111,21 @@ def masks(engine_list, count=None, table=rows, limit=UPSTREAM['NV2080_GPU_MAX_EN
+     return d, e
+ 
+ 
+-# 3. the public #105 report (RTX 5070 Ti, GB203, 10DE:2C05): NVENC1 + NVENC2 present, NVENC0 absent, NVDEC0 present
++# 3. the public #105 list (RTX 5070 Ti, GB203, 10DE:2C05), replayed as NV2080 engine types. It contradicts RM's GB203
++#    class table (NVENC0-1), so this only pins the decoding of a known list, not what a GB203 actually exposes.
+ ti = [0x1, 0x9, 0xd, 0xe, 0x13, 0x1c, 0x1d, 0x22, 0x26, 0x2c, 0x33]
+ d, e = masks(ti)
+-check('#105 engine list: NVDEC mask 0x1, NVENC mask 0x6 (no NVENC0)', (d, e) == (0x1, 0x6), f'0x{d:x} 0x{e:x}')
++check('#105 list decodes to NVDEC mask 0x1, NVENC mask 0x6', (d, e) == (0x1, 0x6), f'0x{d:x} 0x{e:x}')
++
++# 3b. the C loop itself has the clamp and sends decoders and encoders to the right masks (the replay above is a Python
++#     copy, so without these a dropped clamp or swapped masks in the C would still pass)
++check('the C loop clamps engineCount to kEngineListMax',
++      re.search(r'en\.engineCount\s*<\s*kEngineListMax\s*\?\s*en\.engineCount\s*:\s*kEngineListMax', fbinfo) is not None)
++check('the C loop iterates the clamped count, not engineCount',
++      re.search(r'for\s*\(\s*NvU32 i = 0;\s*i < n;\s*i\+\+\s*\)', fbinfo) is not None
++      and re.search(r'i\s*<\s*en\.engineCount', fbinfo) is None)
++check('the C loop sends kVidDec to pDecMask and everything else to pEncMask',
++      re.search(r'kind\s*==\s*kVidDec\s*\?\s*pDecMask\s*:\s*pEncMask', fbinfo) is not None)
+ 
+ # 4. GB202's class table maxima (four NVDEC, four NVENC: g_gpu_class_list.c gpuGetEngClassDescriptorList_GB202). This is
+ #    the chip's ceiling, not a measured RTX 5090 list - which instances a given board exposes is what the diagnostic is for.
+-- 
+2.52.0.windows.1
+

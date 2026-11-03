@@ -1,0 +1,352 @@
+From 7f99e4be2d5f1106c862c1190e2768c9013ab294 Mon Sep 17 00:00:00 2001
+From: aydinmrnv <97070767+aydinmrnv@users.noreply.github.com>
+Date: Mon, 2 Nov 2026 11:25:25 -0800
+Subject: [PATCH 1/2] NVRM: publish which NVDEC/NVENC instances the RM reports
+
+The GPU profile names the newest video class (0xCFB0 / 0xCFB7 on every
+consumer Blackwell chip) but not which engine instances a card exposes.
+GB203 boards lack NVENC0 (#105) and RM's class tables give GB202 four
+NVDEC and four NVENC against one each on GB206 (the tested RTX 5060).
+Issue #425 (RTX 5090, no hardware decode) has no log that shows which
+instances exist.
+
+nvrm_query_gpu_profile now also issues NV2080_CTRL_CMD_GPU_GET_ENGINES_V2
+on the subdevice it already holds, logs the raw engine list, and returns
+NVDEC/NVENC instance masks (NVENC3 is engine type 0x3f, not 0x1e).
+publishGpuProfile adds nvdec-instances / nvenc-instances to
+nvrm-gpu-profile only when the RM answered. A failed query leaves the
+rest of the profile unchanged. Diagnostic only: nothing selects an
+engine from it.
+
+tools/test_gpu_profile_video_engines.py (pure Python) checks the control
+id, list size and engine table against NVIDIA's headers, replays the
+mask derivation on the #105 engine list, and has negative controls for
+contiguous NVENC numbering and a stale extern "C" declaration.
+
+Not compiled or run on macOS: needs the NVRM kext build and a GB202.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ kexts/NVRM/NVRM.cpp                     |  13 +-
+ kexts/NVRM/nvrm_fbinfo.cpp              |  55 +++++++-
+ tools/test_gpu_profile_video_engines.py | 165 ++++++++++++++++++++++++
+ 3 files changed, 230 insertions(+), 3 deletions(-)
+ create mode 100644 tools/test_gpu_profile_video_engines.py
+
+diff --git a/kexts/NVRM/NVRM.cpp b/kexts/NVRM/NVRM.cpp
+index 750c742..1cacdec 100644
+--- a/kexts/NVRM/NVRM.cpp
++++ b/kexts/NVRM/NVRM.cpp
+@@ -40,7 +40,8 @@ extern "C" int nvrm_gpuva_map(struct NVRMGpuVaRequest *);
+ extern "C" int nvrm_gpuva_free(struct NVRMGpuVaRequest *);
+ extern "C" bool nvrm_query_vram_kb(NvU32 gpuId, NvU32 *pRamKb, NvU32 *pTotalKb, NvU32 *pStatus);
+ extern "C" bool nvrm_query_gpu_profile(NvU32 gpuId, NvU32 *pArch, NvU32 *pImpl, NvU32 *pCls3d, NvU32 *pClsCompute,
+-                                       NvU32 *pClsCopy, NvU32 *pClsEnc, NvU32 *pClsDec, NvU32 *pStatus);
++                                       NvU32 *pClsCopy, NvU32 *pClsEnc, NvU32 *pClsDec, NvU32 *pStatus,
++                                       NvU32 *pDecMask, NvU32 *pEncMask, NvU32 *pEngineCount);
+ kern_return_t _start(kmod_info_t *ki, void *data);
+ kern_return_t _stop(kmod_info_t *ki, void *data);
+ KMOD_EXPLICIT_DECL(com.nullmoth.NVRM, "0.1", _start, _stop)
+@@ -1267,7 +1268,9 @@ bool NVRM::placeLargeBar1()
+ void NVRM::publishGpuProfile()
+ {
+     NvU32 arch = 0, impl = 0, c3d = 0, ccomp = 0, ccopy = 0, cenc = 0, cdec = 0, st = 0;
+-    if (!nvrm_query_gpu_profile(fNv.gpu_id, &arch, &impl, &c3d, &ccomp, &ccopy, &cenc, &cdec, &st)) {
++    NvU32 decMask = 0, encMask = 0, engines = 0;
++    if (!nvrm_query_gpu_profile(fNv.gpu_id, &arch, &impl, &c3d, &ccomp, &ccopy, &cenc, &cdec, &st,
++                                &decMask, &encMask, &engines)) {
+         LOG("gpu profile: the RM did not answer (status 0x%x) - no profile published, users fall back to device ids", (unsigned)st);
+         return;
+     }
+@@ -1296,6 +1299,9 @@ void NVRM::publishGpuProfile()
+     str("chip", chip); str("generation", gen);
+     num("class-3d", c3d, 32); num("class-compute", ccomp, 32); num("class-copy", ccopy, 32);
+     num("class-nvenc", cenc, 32); num("class-nvdec", cdec, 32);
++    // Which NVDEC / NVENC instances the RM reports (bit n = instance n). Absent when the RM did not answer, so a
++    // reader can tell "unknown" from "none". Diagnostic only: no library reads it to pick an engine yet.
++    if (engines) { num("nvdec-instances", decMask, 32); num("nvenc-instances", encMask, 32); }
+     num("bar1-mb", bar1 >> 20, 32); num("vram-mb", vram >> 20, 32);
+     str("scanout", staticBar1 ? "static-bar1" : "by-handle");
+     str("video-layout", arch >= 0x1A0 ? "blackwell" : "classic");
+@@ -1305,6 +1311,9 @@ void NVRM::publishGpuProfile()
+     LOG("gpu profile: %s %s, 3d 0x%x copy 0x%x nvenc 0x%x nvdec 0x%x, BAR1 %llu MB of %llu MB VRAM -> scanout %s",
+         gen, chip, (unsigned)c3d, (unsigned)ccopy, (unsigned)cenc, (unsigned)cdec, bar1 >> 20, vram >> 20,
+         staticBar1 ? "static-bar1" : "by-handle");
++    if (engines) LOG("gpu profile: video engine instances NVDEC mask 0x%x, NVENC mask 0x%x (%u engines listed)",
++                     (unsigned)decMask, (unsigned)encMask, (unsigned)engines);
++    else LOG("gpu profile: video engine instances unknown (GET_ENGINES_V2 did not answer)");
+ }
+ 
+ void NVRM::readBARs()
+diff --git a/kexts/NVRM/nvrm_fbinfo.cpp b/kexts/NVRM/nvrm_fbinfo.cpp
+index f38ab1a..deff701 100644
+--- a/kexts/NVRM/nvrm_fbinfo.cpp
++++ b/kexts/NVRM/nvrm_fbinfo.cpp
+@@ -30,6 +30,8 @@ enum {
+     kCmdFbGetInfoV2  = 0x20801303u,
+     kCmdMcGetArch    = 0x20801701u,   /* NV2080_CTRL_CMD_MC_GET_ARCH_INFO */
+     kCmdClassListV2  = 0x00800292u,   /* NV0080_CTRL_CMD_GPU_GET_CLASSLIST_V2 */
++    kCmdGetEnginesV2 = 0x20800170u,   /* NV2080_CTRL_CMD_GPU_GET_ENGINES_V2 */
++    kEngineListMax   = 0x54u,         /* NV2080_GPU_MAX_ENGINES_LIST_SIZE (= NV2080_ENGINE_TYPE_LAST) */
+     kClassListMax    = 200u,
+     kFbIdxRamSize    = 0x00000007u,
+     kFbIdxTotalRam   = 0x00000008u,
+@@ -46,6 +48,21 @@ struct FbiInfo     { NvU32 index; NvU32 data; };
+ struct FbiArch     { NvU32 architecture; NvU32 implementation; NvU32 revision; NvU8 subRevision; };
+ struct FbiClasses  { NvU32 numClasses; NvU32 classList[kClassListMax]; };
+ struct FbiGetInfo  { NvU32 fbInfoListSize; struct FbiInfo fbInfoList[0x80]; };
++struct FbiEngines  { NvU32 engineCount; NvU32 engineList[kEngineListMax]; };
++
++/*
++ * Which video engine instances the RM reports for this GPU (NV2080_ENGINE_TYPE_*, class/cl2080_notification.h; the
++ * values are the same in 610.57.04 and 615.78.08). The class list above only says which video CLASS the chip has, the
++ * same 0xCFB0/0xCFB7 on every GB20x, not which instances survived floor-sweeping: an RTX 5070 Ti (GB203) reported
++ * NVENC1 and NVENC2 but no NVENC0 (#105), and the class tables list four NVDEC and four NVENC for GB202 against one of
++ * each for GB206. NVENC3 does not follow NVENC2 (0x3f, not 0x1e). Read-only: nothing here selects an engine.
++ */
++enum { kVidDec = 0, kVidEnc = 1 };
++static const struct { NvU32 type; NvU8 kind; NvU8 inst; } kVideoEngines[] = {
++    { 0x13u, kVidDec, 0 }, { 0x14u, kVidDec, 1 }, { 0x15u, kVidDec, 2 }, { 0x16u, kVidDec, 3 },
++    { 0x17u, kVidDec, 4 }, { 0x18u, kVidDec, 5 }, { 0x19u, kVidDec, 6 }, { 0x1au, kVidDec, 7 },
++    { 0x1bu, kVidEnc, 0 }, { 0x1cu, kVidEnc, 1 }, { 0x1du, kVidEnc, 2 }, { 0x3fu, kVidEnc, 3 },
++};
+ 
+ static NvV32 fbiAlloc(NvU32 hRoot, NvU32 hParent, NvU32 hClass, void *pParams, NvU32 size, NvU32 *hOut)
+ {
+@@ -222,9 +239,26 @@ extern "C" bool nvrm_query_vram_kb(NvU32 gpuId, NvU32 *pRamKb, NvU32 *pTotalKb,
+  * architecture from MC_GET_ARCH_INFO, and for each engine type the newest class the RM lists for this GPU (3D xx97,
+  * compute xxC0, copy xxB5, video encode xxB7, decode xxB0). Everything chip-specific in the macOS layer (copy engine,
+  * scan-out model, video libraries, native shaders) is chosen from this one answer instead of a device-id range.
++ * The engine list (GET_ENGINES_V2) adds which NVDEC and NVENC instances exist, as bit masks by instance; *pEngineCount
++ * stays 0 when the RM did not answer, and the rest of the profile does not depend on it.
+  */
++static void fbiHexList(char *out, unsigned cap, const NvU32 *v, NvU32 n)
++{
++    static const char k[] = "0123456789abcdef";
++    unsigned o = 0;
++    for (NvU32 i = 0; i < n; i++) {
++        char t[8]; unsigned m = 0; NvU32 x = v[i];
++        do { t[m++] = k[x & 15]; x >>= 4; } while (x && m < 8);
++        if (o + m + 2 > cap) break;
++        if (i) out[o++] = ' ';
++        while (m) out[o++] = t[--m];
++    }
++    out[o] = 0;
++}
++
+ extern "C" bool nvrm_query_gpu_profile(NvU32 gpuId, NvU32 *pArch, NvU32 *pImpl, NvU32 *pCls3d, NvU32 *pClsCompute,
+-                                       NvU32 *pClsCopy, NvU32 *pClsEnc, NvU32 *pClsDec, NvU32 *pStatus)
++                                       NvU32 *pClsCopy, NvU32 *pClsEnc, NvU32 *pClsDec, NvU32 *pStatus,
++                                       NvU32 *pDecMask, NvU32 *pEncMask, NvU32 *pEngineCount)
+ {
+     NvU32 hClient = 0, hDevice = 0, hSub = 0;
+     NvV32 st = 0;
+@@ -234,8 +268,11 @@ extern "C" bool nvrm_query_gpu_profile(NvU32 gpuId, NvU32 *pArch, NvU32 *pImpl,
+     NV2080_ALLOC_PARAMETERS sp;
+     struct FbiArch        ap;
+     static struct FbiClasses cl;   /* 804 bytes: off the kernel stack; callers run one at a time (attach) */
++    static struct FbiEngines en;   /* 340 bytes, same reason */
++    static char engText[kEngineListMax * 9 + 1];
+ 
+     *pArch = *pImpl = *pCls3d = *pClsCompute = *pClsCopy = *pClsEnc = *pClsDec = 0;
++    *pDecMask = *pEncMask = *pEngineCount = 0;
+     if (pStatus) *pStatus = 0xffffffffu;
+     do {
+         st = fbiAlloc(0, 0, kClsRootClient, NULL, 0, &hClient);
+@@ -277,6 +314,22 @@ extern "C" bool nvrm_query_gpu_profile(NvU32 gpuId, NvU32 *pArch, NvU32 *pImpl,
+         FBILOG("profile: gpu 0x%08x arch 0x%x impl 0x%x 3d 0x%x compute 0x%x copy 0x%x enc 0x%x dec 0x%x (%u classes)",
+                (unsigned)gpuId, (unsigned)ap.architecture, (unsigned)ap.implementation, (unsigned)*pCls3d,
+                (unsigned)*pClsCompute, (unsigned)*pClsCopy, (unsigned)*pClsEnc, (unsigned)*pClsDec, (unsigned)cl.numClasses);
++
++        fbiZero(&en, sizeof en);
++        const NvV32 est = fbiControl(hClient, hSub, kCmdGetEnginesV2, &en, sizeof en);
++        if (est != 0) {
++            FBILOG("profile: GET_ENGINES_V2 -> status 0x%x (video engine instances unknown)", (unsigned)est);
++        } else {
++            const NvU32 n = en.engineCount < kEngineListMax ? en.engineCount : kEngineListMax;
++            for (NvU32 i = 0; i < n; i++)
++                for (unsigned j = 0; j < sizeof kVideoEngines / sizeof kVideoEngines[0]; j++)
++                    if (en.engineList[i] == kVideoEngines[j].type)
++                        *(kVideoEngines[j].kind == kVidDec ? pDecMask : pEncMask) |= 1u << kVideoEngines[j].inst;
++            *pEngineCount = n;
++            fbiHexList(engText, sizeof engText, en.engineList, n);
++            FBILOG("profile: gpu 0x%08x engines (%u): %s -> NVDEC mask 0x%x, NVENC mask 0x%x",
++                   (unsigned)gpuId, (unsigned)n, engText, (unsigned)*pDecMask, (unsigned)*pEncMask);
++        }
+         ok = ap.architecture != 0;
+     } while (0);
+     if (pStatus) *pStatus = (NvU32)st;
+diff --git a/tools/test_gpu_profile_video_engines.py b/tools/test_gpu_profile_video_engines.py
+new file mode 100644
+index 0000000..a372d73
+--- /dev/null
++++ b/tools/test_gpu_profile_video_engines.py
+@@ -0,0 +1,165 @@
++#!/usr/bin/env python3
++"""The GPU profile's video engine instances (nvdec-instances / nvenc-instances) are decoded with NVIDIA's own engine ids.
++
++Why: the profile's class-nvdec / class-nvenc are the same 0xCFB0 / 0xCFB7 on every consumer Blackwell chip, so they cannot
++say which NVDEC or NVENC instances a given card has. An RTX 5070 Ti (GB203) reported NVENC1 and NVENC2 but no NVENC0
++(#105, engine list "1 9 d e 13 1c 1d 22 26 2c 33"), and RM's class tables list four NVDEC and four NVENC for GB202
++(RTX 5090) against one of each for GB206 (RTX 5060, the tested card). Issue #425 (RTX 5090: no hardware decode) has no
++logs that say which instances exist; this instrumentation makes the answer visible in ioreg and the kernel log.
++
++Pure Python, no compiler and no GPU: the engine table, the control id and the list size are read from
++kexts/NVRM/nvrm_fbinfo.cpp and checked against NVIDIA's header values (embedded snapshot from open-gpu-kernel-modules
++610.57.04 and 615.78.08, which agree; re-checked against a tree given as argv[2] or $OGKM when present). The mask
++derivation is replayed with the table parsed from the C source on the #105 engine list.
++
++Negative controls: a contiguous NVENC numbering (NVENC3 = 0x1e) loses GB202's fourth encoder, and a C declaration whose
++parameter list differs from the definition (extern "C" links it anyway) is reported.
++
++usage: python3 tools/test_gpu_profile_video_engines.py [repo root] [open-gpu-kernel-modules root]
++"""
++import os
++import pathlib
++import re
++import sys
++
++root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else pathlib.Path(__file__).resolve().parents[1])
++ogkm_arg = sys.argv[2] if len(sys.argv) > 2 else os.environ.get('OGKM', '')
++fbinfo = (root / 'kexts/NVRM/nvrm_fbinfo.cpp').read_text()
++nvrm = (root / 'kexts/NVRM/NVRM.cpp').read_text()
++fails = 0
++
++
++def check(name, ok, detail=''):
++    global fails
++    print(('ok   ' if ok else 'FAIL ') + name + (f' ({detail})' if detail else ''))
++    fails += 0 if ok else 1
++
++
++# NVIDIA's values: class/cl2080_notification.h (NV2080_ENGINE_TYPE_*) and ctrl/ctrl2080/ctrl2080gpu.h, identical in
++# 610.57.04 and 615.78.08 (checked when this test was written).
++UPSTREAM = {
++    'NV2080_CTRL_CMD_GPU_GET_ENGINES_V2': 0x20800170,
++    'NV2080_GPU_MAX_ENGINES_LIST_SIZE': 0x54,
++    'NV2080_ENGINE_TYPE_LAST': 0x54,
++}
++UPSTREAM_DEC = {i: 0x13 + i for i in range(8)}                     # NVDEC0 (= BSP) .. NVDEC7
++UPSTREAM_ENC = {0: 0x1b, 1: 0x1c, 2: 0x1d, 3: 0x3f}                # NVENC0 (= MSENC), 1, 2, then 3 at 0x3f
++
++
++def drift_check(tree):
++    """Re-read NVIDIA's headers from a source tree, if one is given, so the snapshot above cannot drift silently."""
++    notif = tree / 'src/common/sdk/nvidia/inc/class/cl2080_notification.h'
++    gpu = tree / 'src/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h'
++    if not notif.exists() or not gpu.exists():
++        print(f'note: {tree} has no cl2080_notification.h / ctrl2080gpu.h - embedded snapshot only')
++        return
++    defs = {}
++    for text in (notif.read_text(), gpu.read_text()):
++        for k, v in re.findall(r'#define\s+(NV2080_\w+)\s+\(?(0x[0-9A-Fa-f]+)U?\)?', text):
++            defs.setdefault(k, int(v, 16))
++    alias = {'NV2080_ENGINE_TYPE_NVDEC0': 'NV2080_ENGINE_TYPE_BSP', 'NV2080_ENGINE_TYPE_NVENC0': 'NV2080_ENGINE_TYPE_MSENC'}
++    live = {k: defs.get(k) for k in UPSTREAM}
++    live_dec = {i: defs.get(alias.get(f'NV2080_ENGINE_TYPE_NVDEC{i}', f'NV2080_ENGINE_TYPE_NVDEC{i}')) for i in range(8)}
++    live_enc = {i: defs.get(alias.get(f'NV2080_ENGINE_TYPE_NVENC{i}', f'NV2080_ENGINE_TYPE_NVENC{i}')) for i in range(4)}
++    check(f'snapshot matches {tree.name} headers', live == UPSTREAM and live_dec == UPSTREAM_DEC and live_enc == UPSTREAM_ENC,
++          str({'ids': live, 'dec': live_dec, 'enc': live_enc})[:300])
++
++
++for cand in [ogkm_arg, os.path.expanduser('~/ogkm610')]:
++    if cand and pathlib.Path(cand).exists():
++        drift_check(pathlib.Path(cand))
++        break
++else:
++    print('note: no open-gpu-kernel-modules tree given - running on the embedded snapshot only')
++
++# 1. the control id and list size the kext sends
++m_cmd = re.search(r'kCmdGetEnginesV2\s*=\s*(0x[0-9A-Fa-f]+)u', fbinfo)
++m_max = re.search(r'kEngineListMax\s*=\s*(0x[0-9A-Fa-f]+)u', fbinfo)
++check('the kext sends NV2080_CTRL_CMD_GPU_GET_ENGINES_V2',
++      bool(m_cmd) and int(m_cmd.group(1), 16) == UPSTREAM['NV2080_CTRL_CMD_GPU_GET_ENGINES_V2'], m_cmd and m_cmd.group(1))
++check('its list is NV2080_GPU_MAX_ENGINES_LIST_SIZE entries, so the params size matches RM\'s struct',
++      bool(m_max) and int(m_max.group(1), 16) == UPSTREAM['NV2080_GPU_MAX_ENGINES_LIST_SIZE'], m_max and m_max.group(1))
++check('the params struct is { NvU32 engineCount; NvU32 engineList[kEngineListMax]; }',
++      re.search(r'struct FbiEngines\s*\{\s*NvU32 engineCount;\s*NvU32 engineList\[kEngineListMax\];\s*\};', fbinfo) is not None)
++
++# 2. the engine table, parsed from the C source
++tbl = re.search(r'kVideoEngines\[\]\s*=\s*\{(.+?)\n\};', fbinfo, re.S)
++rows = [(int(t, 16), k, int(i)) for t, k, i in re.findall(r'\{\s*(0x[0-9A-Fa-f]+)u,\s*(kVid\w+),\s*(\d+)\s*\}',
++                                                          tbl.group(1))] if tbl else []
++check('kVideoEngines parsed from nvrm_fbinfo.cpp', len(rows) == 12, f'{len(rows)} rows')
++dec = {i: t for t, k, i in rows if k == 'kVidDec'}
++enc = {i: t for t, k, i in rows if k == 'kVidEnc'}
++check('NVDEC0-7 use NVIDIA\'s engine ids 0x13-0x1a', dec == UPSTREAM_DEC, str({i: hex(t) for i, t in dec.items()}))
++check('NVENC0-3 use NVIDIA\'s engine ids, NVENC3 at 0x3f', enc == UPSTREAM_ENC, str({i: hex(t) for i, t in enc.items()}))
++check('no engine id appears twice', len({t for t, _, _ in rows}) == len(rows))
++
++
++def masks(engine_list, count=None, table=rows, limit=UPSTREAM['NV2080_GPU_MAX_ENGINES_LIST_SIZE']):
++    """The C loop: the first min(engineCount, kEngineListMax) entries, each looked up in kVideoEngines."""
++    n = min(len(engine_list) if count is None else count, limit)
++    d = e = 0
++    for x in engine_list[:n]:
++        for t, k, i in table:
++            if x == t:
++                if k == 'kVidDec':
++                    d |= 1 << i
++                else:
++                    e |= 1 << i
++    return d, e
++
++
++# 3. the public #105 report (RTX 5070 Ti, GB203, 10DE:2C05): NVENC1 + NVENC2 present, NVENC0 absent, NVDEC0 present
++ti = [0x1, 0x9, 0xd, 0xe, 0x13, 0x1c, 0x1d, 0x22, 0x26, 0x2c, 0x33]
++d, e = masks(ti)
++check('#105 engine list: NVDEC mask 0x1, NVENC mask 0x6 (no NVENC0)', (d, e) == (0x1, 0x6), f'0x{d:x} 0x{e:x}')
++
++# 4. GB202's class table maxima (four NVDEC, four NVENC: g_gpu_class_list.c gpuGetEngClassDescriptorList_GB202). This is
++#    the chip's ceiling, not a measured RTX 5090 list - which instances a given board exposes is what the diagnostic is for.
++gb202_full = [0x1] + [0x9 + i for i in range(8)] + [UPSTREAM_DEC[i] for i in range(4)] + [UPSTREAM_ENC[i] for i in range(4)]
++check('a GB202 list with all four NVDEC and NVENC gives masks 0xf / 0xf', masks(gb202_full) == (0xF, 0xF),
++      str(masks(gb202_full)))
++gb206 = [0x1, 0x9, UPSTREAM_DEC[0], UPSTREAM_ENC[0], 0x22]
++check('a GB206-shaped list (one NVDEC, one NVENC) gives 0x1 / 0x1', masks(gb206) == (0x1, 0x1), str(masks(gb206)))
++
++# 5. bounds: engineCount larger than the list is clamped, as in the C loop
++check('engineCount beyond the list size is clamped (no read past engineList)',
++      masks(gb202_full + [0] * 200, count=500) == (0xF, 0xF))
++check('engineCount 0 yields no instances', masks(gb202_full, count=0) == (0, 0))
++
++# 6. negative control: contiguous NVENC numbering (NVENC3 = 0x1e) loses GB202's fourth encoder
++mutant = [(0x1e if (k == 'kVidEnc' and i == 3) else t, k, i) for t, k, i in rows]
++check('negative control: NVENC3 numbered 0x1e reports only three of GB202\'s encoders',
++      masks(gb202_full, table=mutant)[1] == 0x7, hex(masks(gb202_full, table=mutant)[1]))
++
++# 7. the declaration NVRM.cpp links against has the definition's parameter list (extern "C" would hide a mismatch)
++
++
++def params(src, kind):
++    pat = r'extern "C" bool nvrm_query_gpu_profile\((.*?)\)' + (r'\s*;' if kind == 'decl' else r'\s*\{')
++    m = re.search(pat, src, re.S)
++    return [re.sub(r'\s+', ' ', p.strip()) for p in m.group(1).split(',')] if m else None
++
++
++d_def, d_decl = params(fbinfo, 'def'), params(nvrm, 'decl')
++check('NVRM.cpp declares nvrm_query_gpu_profile with the definition\'s parameters', d_def is not None and d_def == d_decl,
++      f'{len(d_def or [])} vs {len(d_decl or [])} params')
++old_decl = ('extern "C" bool nvrm_query_gpu_profile(NvU32 gpuId, NvU32 *pArch, NvU32 *pImpl, NvU32 *pCls3d, '
++            'NvU32 *pClsCompute,\n    NvU32 *pClsCopy, NvU32 *pClsEnc, NvU32 *pClsDec, NvU32 *pStatus);')
++stale = re.sub(r'extern "C" bool nvrm_query_gpu_profile\(.*?\)\s*;', lambda _: old_decl, nvrm, count=1, flags=re.S)
++check('negative control: the pre-patch 9-parameter declaration is reported as a mismatch',
++      stale != nvrm and params(stale, 'decl') is not None and params(stale, 'decl') != d_def,
++      f'{len(params(stale, "decl") or [])} params')
++call = re.search(r'nvrm_query_gpu_profile\(fNv\.gpu_id,(.*?)\)\)', nvrm, re.S)
++check('the call passes as many arguments as the definition takes',
++      bool(call) and d_def is not None and len(call.group(1).split(',')) + 1 == len(d_def),
++      f'{len(call.group(1).split(",")) + 1 if call else 0} args')
++
++# 8. publication: only when the RM answered, so "unknown" is distinguishable from "no engines"
++check('nvdec-instances / nvenc-instances are published only when the engine list was read',
++      re.search(r'if \(engines\) \{ num\("nvdec-instances", decMask, 32\); num\("nvenc-instances", encMask, 32\); \}',
++                nvrm) is not None)
++check('a failed GET_ENGINES_V2 does not fail the profile (ok is still decided by the architecture)',
++      re.search(r'if \(est != 0\) \{\s*FBILOG\(', fbinfo) is not None and 'ok = ap.architecture != 0;' in fbinfo)
++
++print('FAILED' if fails else 'PASS')
++sys.exit(1 if fails else 0)
+-- 
+2.52.0.windows.1
+
