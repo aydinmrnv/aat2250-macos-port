@@ -194,3 +194,11 @@
   - Fix: our own `deliverables/acpi/x2apic_to_lapic.py` produces `APIC-LAPIC.aml` (24 LAPIC entries). OpenCore deletes the firmware APIC (length 856) and adds the converted one.
   - ocvalidate: no issues. Stick updated and hash-verified: config 4aba9c0b…, table d5496ada….
   - This had been flagged as a risk ("MADT x2APIC-only") since the first analysis, and it was not fixed before the first boot. That is my miss.
+- **Fifth attempt (13:43): the MADT fix worked. The macOS kernel is running.** boot.efi hit EXITBS at 13:45:19 (log on the stick), and kernel verbose output followed.
+  - Photos show AppleACPIPlatform up, ACPI `_DSM` evaluations on `\_SB.PC00.TXHC.RHUB` and `SS01–SS04` failing with `AE_NOT_FOUND`, then `VirtualSMC efend: authenticated restart support is unavailable`, and then no further output at the time of the photo.
+  - The TXHC `_DSM` errors come from the Dell TCSS USB-C ACPI code under macOS's ACPICA 20160930. Our only ACPI patch is confirmed scoped to `\_SB.PC00.LPCB.ECDV._STA` (DSDT, count 1), so it is not the cause. They are expected to be non-fatal.
+  - VirtualSMC's efend message is normal. Open question: how long it sat on that line. If it's stuck, XNU prints either "Still waiting for root device" or IOKit busy-timeout lists after about 1–5 minutes; those identify the blocker.
+  - User estimate: about 5 minutes on that line with no further output. No "Still waiting for root device" and no busy-service list, so a silent hard hang is likely.
+  - Prime suspect: our own probes. They start at PCI driver matching, right after VirtualSMC init, and neither probe's first IOLog line appeared. USB4Probe's MMIO reads of a TCSS NHI the firmware may have power-gated can stall the CPU silently; VMDProbe is less likely.
+  - Isolation for the sixth attempt: `-vmdprobe` and `-usb4probe` removed from boot-args (the kexts stay installed but inert). Nothing else changed. `boot-args` is in NVRAM Delete, so the new value applies.
+  - ocvalidate: no issues. Stick config c54a2c39….
