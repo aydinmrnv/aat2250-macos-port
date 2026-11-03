@@ -44,6 +44,9 @@ done
 OC=$WORK/x/OpenCore/X64/EFI
 mkdir -p "$OUT/EFI/BOOT" "$OUT/EFI/OC/ACPI" "$OUT/EFI/OC/Drivers" "$OUT/EFI/OC/Kexts" "$OUT/EFI/OC/Tools"
 cp "$OC/BOOT/BOOTx64.efi" "$OUT/EFI/BOOT/"
+# Hide the stick's own EFI/BOOT entry from the picker, so the recovery dmg is the only entry and boots at
+# timeout even if the keyboard does not work in OpenCore (first test boot, 2026-11-03).
+printf 'Disabled' > "$OUT/EFI/BOOT/.contentVisibility"
 cp "$OC/OC/OpenCore.efi" "$OUT/EFI/OC/"
 for d in OpenRuntime OpenHfsPlus ResetNvramEntry; do cp "$OC/OC/Drivers/$d.efi" "$OUT/EFI/OC/Drivers/"; done
 cp "$REPO"/deliverables/acpi/*.aml "$OUT/EFI/OC/ACPI/"

@@ -165,3 +165,7 @@
 - Cause (config error, mine): ScanPolicy `0x200703` set `OC_SCAN_FILE_SYSTEM_LOCK` and allowed only APFS, HFS and ESP. The stick is an MBR FAT32 partition (type 0x0C, not an EFI System partition), so it was filtered out, and with it the recovery dmg.
 - Fix: ScanPolicy `0x200002` (device lock, USB only, any filesystem). Internal disks are still never scanned. ocvalidate reports no issues. The stick's config is updated and hash-verified; the public `efi/config.plist` is updated too.
 - Side effect reported: Windows said the PIN was unavailable afterwards. This is the expected Windows Hello behaviour after a Secure Boot (TPM measurement) change; OpenCore wrote nothing to Windows. Fix: sign in with the password, then reset the PIN, or turn Secure Boot back on.
+- **Second attempt:** the picker showed `1. OpenCore (external)` and `2. OpenCore (external) (dmg)`. The dmg entry is the Tahoe recovery. Keys did not work in the picker, so the timeout defaulted to entry 1, the stick's own `EFI/BOOT` launcher.
+  - Fix: `EFI/BOOT/.contentVisibility` = `Disabled`, a documented OpenCore 1.0.8 mechanism (Configuration.tex §boot algorithm). The recovery dmg is now the only entry and boots at the 10 s timeout without a key press.
+  - Added to the stick, to the Mac's efi-stage and to `tools/build-efi.sh`.
+  - Keyboard: KeySupport is already on. Next boot, plug the keyboard into a rear USB port; the dock's USB may not be up before OpenCore.
