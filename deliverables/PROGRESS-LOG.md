@@ -159,3 +159,9 @@
   - Launching it from the Claude app put its AF_UNIX sockets in the app's virtualized AppData, and Windows couldn't open them afterwards. The 24 Oct `run.stale-*` folders show the same thing happened before.
   - Fix: the broken folders were renamed `*.stale-20261103b` (nothing deleted), and the user starts Docker from the Start menu.
   - Leftover: the ubuntu:24.04 image (~78 MB) is still in Docker.
+
+## 2026-11-03: First test boot. OpenCore halted with "System has no boot entries"
+- Result: OpenCore started (Secure Boot off works), then `OCB: System has no boot entries` / `OC: Failed to show boot menu! Halting on critical error`. Windows booted normally afterwards.
+- Cause (config error, mine): ScanPolicy `0x200703` set `OC_SCAN_FILE_SYSTEM_LOCK` and allowed only APFS, HFS and ESP. The stick is an MBR FAT32 partition (type 0x0C, not an EFI System partition), so it was filtered out, and with it the recovery dmg.
+- Fix: ScanPolicy `0x200002` (device lock, USB only, any filesystem). Internal disks are still never scanned. ocvalidate reports no issues. The stick's config is updated and hash-verified; the public `efi/config.plist` is updated too.
+- Side effect reported: Windows said the PIN was unavailable afterwards. This is the expected Windows Hello behaviour after a Secure Boot (TPM measurement) change; OpenCore wrote nothing to Windows. Fix: sign in with the password, then reset the PIN, or turn Secure Boot back on.
