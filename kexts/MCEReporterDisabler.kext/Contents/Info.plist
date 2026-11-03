@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Codeless kext (no executable). With a MacPro7,1 SMBIOS, Apple's AppleIntelMCEReporter expects Xeon machine-check
+  hardware; on other CPUs it can hang or panic during boot. These personalities claim its two match categories first
+  (higher IOProbeScore, plain IOService), so Apple's driver never starts. Same technique as the widely used
+  AppleMCEReporterDisabler; this file was written for this project.
+  Board IDs: MacPro7,1 (Mac-27AD2F918AE68F61), MacPro6,1 (Mac-F60DEB81FF30ACF6), iMacPro1,1 (Mac-7BA5B2D9E42DDD94).
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.aat2250.driver.MCEReporterDisabler</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>MCEReporterDisabler</string>
+	<key>CFBundlePackageType</key>
+	<string>KEXT</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
+	<key>IOKitPersonalities</key>
+	<dict>
+		<key>ClaimMCEInterruptController</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.apple.driver.AppleIntelMCEReporter</string>
+			<key>IOClass</key>
+			<string>IOService</string>
+			<key>IOMatchCategory</key>
+			<string>AppleIntelMCEInterruptController</string>
+			<key>IOProbeScore</key>
+			<integer>5000</integer>
+			<key>IOPropertyMatch</key>
+			<array>
+				<dict>
+					<key>board-id</key>
+					<string>Mac-27AD2F918AE68F61</string>
+				</dict>
+				<dict>
+					<key>board-id</key>
+					<string>Mac-F60DEB81FF30ACF6</string>
+				</dict>
+				<dict>
+					<key>board-id</key>
+					<string>Mac-7BA5B2D9E42DDD94</string>
+				</dict>
+			</array>
+			<key>IOProviderClass</key>
+			<string>IOPlatformExpertDevice</string>
+		</dict>
+		<key>ClaimMCEReporter</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.apple.driver.AppleIntelMCEReporter</string>
+			<key>IOClass</key>
+			<string>IOService</string>
+			<key>IOMatchCategory</key>
+			<string>AppleIntelMCEReporter</string>
+			<key>IOProbeScore</key>
+			<integer>5000</integer>
+			<key>IOProviderClass</key>
+			<string>AppleIntelMCEInterruptNub</string>
+		</dict>
+	</dict>
+	<key>OSBundleRequired</key>
+	<string>Root</string>
+</dict>
+</plist>

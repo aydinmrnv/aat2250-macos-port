@@ -67,7 +67,7 @@ kext IntelBluetooth IntelBluetoothFirmware
 kext IntelBluetooth IntelBTPatcher
 kext USBToolBox USBToolBox
 kext USBToolBox UTBDefault
-for k in vmd-driver/dist/VMDProbe vmd-driver/dist/VMDBridge usb4-driver/dist/USB4Probe; do
+for k in kexts/MCEReporterDisabler vmd-driver/dist/VMDProbe vmd-driver/dist/VMDBridge usb4-driver/dist/USB4Probe; do
   ditto "$REPO/$k.kext" "$OUT/EFI/OC/Kexts/${k:t}.kext"
 done
 

@@ -202,3 +202,13 @@
   - Prime suspect: our own probes. They start at PCI driver matching, right after VirtualSMC init, and neither probe's first IOLog line appeared. USB4Probe's MMIO reads of a TCSS NHI the firmware may have power-gated can stall the CPU silently; VMDProbe is less likely.
   - Isolation for the sixth attempt: `-vmdprobe` and `-usb4probe` removed from boot-args (the kexts stay installed but inert). Nothing else changed. `boot-args` is in NVRAM Delete, so the new value applies.
   - ocvalidate: no issues. Stick config c54a2c39….
+- **Sixth-attempt config: minimal, proven kext set.**
+  - Audit finding: **CpuTopologyRebuild and SMCProcessor were disabled.** The booting Arrow Lake Tahoe reference runs CpuTopologyRebuild. The 285K is hybrid (8P+16E, no HT), and the freeze came where CPU power management starts, so this is now a stronger suspect than the probes. Both enabled.
+  - Added `kexts/MCEReporterDisabler.kext`, our own codeless plist. It claims AppleIntelMCEReporter's match categories for board-id Mac-27AD2F918AE68F61 (MacPro7,1), the same technique as AppleMCEReporterDisabler, which the reference uses.
+  - Disabled entirely: VMDProbe, USB4Probe, VMDBridge. No experimental code on this boot.
+  - Enabled set: MCEReporterDisabler, Lilu, VirtualSMC, SMCProcessor, RestrictEvents, CpuTopologyRebuild, LucyRTL8125Ethernet, USBToolBox, UTBDefault.
+  - Recovery path check:
+    - Keyboard: plugged into a rear PCH USB port, a USB2 device enumerates on HS01–HS14, inside macOS's 15-port limit with UTBDefault.
+    - Display: GOP framebuffer, no GPU driver needed for Recovery.
+    - Root: the dmg is booted from RAM (MemMap device), so USB storage isn't needed for root.
+  - ocvalidate: no issues. All enabled kexts present on the stick. Config a8f0bb4a….
