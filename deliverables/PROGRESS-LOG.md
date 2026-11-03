@@ -180,3 +180,11 @@
   - Not taken: the reference's DSDT-specific IRQ and `_OSI` patches (that board's own firmware), and SSDT-PMC (NVRAM; not needed for a recovery boot).
   - Logging: `DisplayLevel` 0x80000002 → 0x80000042, so the OpenCore log on the stick includes INFO lines. The first two logs held only the error lines and confirmed the diagnoses: "no boot entries", then entry 1 = OpenCore re-launch ("Already started").
   - ocvalidate: no issues. The stick's config is updated and hash-verified (107ec9ff…).
+- **Third attempt (13:13): got further than it looked.** Only the dmg entry was shown, and it was auto-selected at the timeout.
+  - The log shows **Apple's boot.efi (bootbase.efi 583~5906) running from the recovery dmg**. It entered recovery boot mode (`BM:ROS`) and read the boot-args (with a `slide=177` added by OpenCore).
+  - OpenCore took 78 s before boot.efi (10 s countdown, then loading and verifying the 960 MB dmg from a USB 2.0 stick). boot.efi logged about 17 s more, and the log ends where it loads the kernel from the dmg, with no error line.
+  - Most likely it was still loading when it was switched off. No failure was recorded.
+  - Changes:
+    - `ShowPicker=false`: the single entry boots immediately; no menu, no keyboard needed.
+    - `-lilubetaall` added, so Lilu plugins can't refuse to load on 26.7. The reference Tahoe build uses it; Lilu 1.7.2 itself supports 26.
+  - ocvalidate: no issues. Stick config hash 27b1897d….

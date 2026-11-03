@@ -709,7 +709,7 @@
 			<key>PollAppleHotKeys</key>
 			<false/>
 			<key>ShowPicker</key>
-			<true/>
+			<false/>
 			<key>TakeoffDelay</key>
 			<integer>0</integer>
 			<key>Timeout</key>
@@ -834,7 +834,7 @@
 				AAAAAAAAAAAAAAAAAAA=
 				</data>
 				<key>boot-args</key>
-				<string>-v keepsyms=1 debug=0x100 -vmdprobe -usb4probe</string>
+				<string>-v keepsyms=1 debug=0x100 -vmdprobe -usb4probe -lilubetaall</string>
 				<key>csr-active-config</key>
 				<data>
 				QwoAAA==
