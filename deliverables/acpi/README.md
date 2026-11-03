@@ -52,3 +52,22 @@ Superseded: the full dump is done (see below). Only SSDT-PMC remains unresolved.
 - Still untested on macOS. On first boot, check that `ioreg` shows the RTC and no ACPI000E.
 
 All `.aml` files are now copied back to this folder.
+
+## APIC-LAPIC.aml (MADT replacement, 2026-11-03)
+**The firmware MADT:** `evidence/acpi/APIC.aml`, 856 bytes, rev 5, OEM DELL. It has **no Processor Local APIC (type 0) entries**. Its contents:
+- 48 x2APIC (type 9) entries: 24 enabled, with APIC IDs 0–88 and UIDs 0–23, plus 24 disabled 0xFFFFFFFF placeholders;
+- 1 x2APIC NMI;
+- 1 I/O APIC;
+- 2 interrupt source overrides.
+
+**Why it matters:** XNU counts CPUs only from type-0 entries. The fourth test boot hung right after `EB|LOG:EXITBS:START`, with no kernel output. Other Arrow Lake machines show the same symptom and were fixed the same way.
+
+**The fix:** `x2apic_to_lapic.py` (our own script) converts every enabled x2APIC entry into a Local APIC entry with the same UID, APIC ID and flags, in firmware order, and drops the placeholders. It turns the x2APIC NMI into a Local APIC NMI (UID 0xFF) and copies all other structures unchanged. The result is 274 bytes with a valid checksum.
+
+**How it's used:** OpenCore `ACPI → Delete` removes `APIC` with TableLength 856, and `ACPI → Add` loads `APIC-LAPIC.aml` first. The UIDs 0–23 match the `Processor` objects (ProcessorID 0–23) in `SSDT-PLUG-ALT`.
+
+**Regenerating it:** after a BIOS update, re-dump APIC and rerun:
+
+```bash
+python3 -I x2apic_to_lapic.py APIC.aml APIC-LAPIC.aml
+```

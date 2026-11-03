@@ -188,3 +188,9 @@
     - `ShowPicker=false`: the single entry boots immediately; no menu, no keyboard needed.
     - `-lilubetaall` added, so Lilu plugins can't refuse to load on 26.7. The reference Tahoe build uses it; Lilu 1.7.2 itself supports 26.
   - ocvalidate: no issues. Stick config hash 27b1897d….
+- **Fourth attempt (13:2x): the kernel handoff hang.** No picker; boot.efi ran fully. It loaded `BootKernelExtensions.kc` from the dmg (Ok), logged `CSR:OUT 0xA43`, then `EB|LOG:EXITBS:START 13:23:02`. Nothing after that: no kernel verbose output. (`OS.dmg.root_hash` was not found; boot.efi continued past it.)
+  - Diagnosis: the Dell MADT has **zero type-0 Local APIC entries**, only x2APIC ones (re-parsed from `evidence/acpi/APIC.aml`). XNU finds no CPUs and stops before the console.
+  - Independent matches: an Arrow Lake laptop with the same EXITBS hang (WTLIntelGfx issue #11), and the Legion 5 15IAX10 OpenCore repo (`APIC-legacy.aml`).
+  - Fix: our own `deliverables/acpi/x2apic_to_lapic.py` produces `APIC-LAPIC.aml` (24 LAPIC entries). OpenCore deletes the firmware APIC (length 856) and adds the converted one.
+  - ocvalidate: no issues. Stick updated and hash-verified: config 4aba9c0b…, table d5496ada….
+  - This had been flagged as a risk ("MADT x2APIC-only") since the first analysis, and it was not fixed before the first boot. That is my miss.

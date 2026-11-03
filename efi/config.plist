@@ -24,6 +24,14 @@
 		<array>
 			<dict>
 				<key>Comment</key>
+				<string>MADT with classic Local APIC entries (x2apic_to_lapic.py); XNU hangs at EXITBS with x2APIC-only MADT</string>
+				<key>Enabled</key>
+				<true/>
+				<key>Path</key>
+				<string>APIC-LAPIC.aml</string>
+			</dict>
+			<dict>
+				<key>Comment</key>
 				<string>Processor() objects CP00-CP23 for Device(ACPI0007) \_SB.PR00-PR23; must be regenerated for 24 threads (see notes) | sha256 ba59b083120fb485f8552174e305a68d78be556dd0a5135e28c354092a4e449b</string>
 				<key>Enabled</key>
 				<true/>
@@ -73,6 +81,24 @@
 				<key>TableSignature</key>
 				<data>
 				RE1BUg==
+				</data>
+			</dict>
+			<dict>
+				<key>All</key>
+				<false/>
+				<key>Comment</key>
+				<string>Drop the firmware x2APIC-only MADT (856 bytes); replaced by APIC-LAPIC.aml</string>
+				<key>Enabled</key>
+				<true/>
+				<key>OemTableId</key>
+				<data>
+				AAAAAAAAAAA=
+				</data>
+				<key>TableLength</key>
+				<integer>856</integer>
+				<key>TableSignature</key>
+				<data>
+				QVBJQw==
 				</data>
 			</dict>
 		</array>
