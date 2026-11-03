@@ -169,3 +169,14 @@
   - Fix: `EFI/BOOT/.contentVisibility` = `Disabled`, a documented OpenCore 1.0.8 mechanism (Configuration.tex §boot algorithm). The recovery dmg is now the only entry and boots at the 10 s timeout without a key press.
   - Added to the stick, to the Mac's efi-stage and to `tools/build-efi.sh`.
   - Keyboard: KeySupport is already on. Next boot, plug the keyboard into a rear USB port; the dock's USB may not be up before OpenCore.
+- **Pre-emptive config fixes before the third attempt.**
+  - Reference: 7HE-W0R1D/Hackintosh-Z890M `EFI-Tahoe` (Core Ultra 265K, Tahoe, MacPro7,1, pushed 2026-10-31). Treated as untrusted evidence; settings were compared, nothing was copied wholesale.
+  - Adopted:
+    - `ProvideCurrentCpuInfo=true` (real CPU and TSC frequencies alongside the Comet Lake CPUID spoof);
+    - `ProtectUefiServices=true` (recommended for Z390-and-newer firmware);
+    - `PollAppleHotKeys=false` (documented to make keyboard input unreliable on some firmware; a suspect for the dead picker keyboard);
+    - `ReleaseUsbOwnership=false` ("not recommended unless required").
+  - Kept `AppleXcpmCfgLock=true`, because Dell firmware can't unlock CFG Lock.
+  - Not taken: the reference's DSDT-specific IRQ and `_OSI` patches (that board's own firmware), and SSDT-PMC (NVRAM; not needed for a recovery boot).
+  - Logging: `DisplayLevel` 0x80000002 → 0x80000042, so the OpenCore log on the stick includes INFO lines. The first two logs held only the error lines and confirmed the diagnoses: "no boot entries", then entry 1 = OpenCore re-launch ("Already started").
+  - ocvalidate: no issues. The stick's config is updated and hash-verified (107ec9ff…).
