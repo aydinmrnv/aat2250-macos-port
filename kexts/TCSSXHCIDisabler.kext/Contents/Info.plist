@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Codeless kext (no executable). Keeps Apple's xHCI driver off the Arrow Lake CPU (TCSS) USB controller 8086:7EC0
+  (\_SB.PC00.TXHC), the Type-C/Thunderbolt-side controller. Two test boots froze right after macOS evaluated this
+  controller's root-hub _DSM methods (AE_NOT_FOUND) and before Recovery came up. A plain IOService personality with a
+  higher IOProbeScore wins the default match category, so AppleUSBXHCIPCI never attaches. Nothing is written to the
+  device. Keyboards and mice on the PCH controller 8086:7F6E are unaffected. Remove this kext to give the TCSS USB-C
+  ports back to macOS once the cause is understood.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.aat2250.driver.TCSSXHCIDisabler</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>TCSSXHCIDisabler</string>
+	<key>CFBundlePackageType</key>
+	<string>KEXT</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
+	<key>IOKitPersonalities</key>
+	<dict>
+		<key>ClaimTCSSXHCI</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.apple.iokit.IOPCIFamily</string>
+			<key>IOClass</key>
+			<string>IOService</string>
+			<key>IOPCIMatch</key>
+			<string>0x7ec08086</string>
+			<key>IOProbeScore</key>
+			<integer>30000</integer>
+			<key>IOProviderClass</key>
+			<string>IOPCIDevice</string>
+		</dict>
+	</dict>
+	<key>OSBundleRequired</key>
+	<string>Root</string>
+</dict>
+</plist>

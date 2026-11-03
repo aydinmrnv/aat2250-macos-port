@@ -264,6 +264,24 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
+				<string>TCSSXHCIDisabler.kext</string>
+				<key>Comment</key>
+				<string>Codeless: keep AppleUSBXHCIPCI off the TCSS xHCI 8086:7EC0 (boot froze after its _DSM errors)</string>
+				<key>Enabled</key>
+				<true/>
+				<key>ExecutablePath</key>
+				<string></string>
+				<key>MaxKernel</key>
+				<string></string>
+				<key>MinKernel</key>
+				<string></string>
+				<key>PlistPath</key>
+				<string>Contents/Info.plist</string>
+			</dict>
+			<dict>
+				<key>Arch</key>
+				<string>x86_64</string>
+				<key>BundlePath</key>
 				<string>Lilu.kext</string>
 				<key>Comment</key>
 				<string>acidanthera/Lilu (src HEAD 0249c3a, tag 1.7.2) | pin Lilu-1.7.2-RELEASE.zip sha256:53967d7dcfaab01023a33df2e969a89522f13d6654a6a56ac4711b62dabf3ab8 (GitHub digest)</string>

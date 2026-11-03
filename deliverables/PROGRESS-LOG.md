@@ -212,3 +212,8 @@
     - Display: GOP framebuffer, no GPU driver needed for Recovery.
     - Root: the dmg is booted from RAM (MemMap device), so USB storage isn't needed for root.
   - ocvalidate: no issues. All enabled kexts present on the stick. Config a8f0bb4a….
+- **Sixth attempt: froze again, at the same point.** The user saw the TXHC `_DSM` errors as the last output, this time without the VirtualSMC line. VirtualSMC's message order varies; the constant is the TCSS xHCI 8086:7EC0 (`\_SB.PC00.TXHC`) root-hub `_DSM` evaluation right before the freeze. This controller was already open as UNRESOLVED-TCSS. The WD19TB dock sits on the same TCSS block.
+  - Fix: `kexts/TCSSXHCIDisabler.kext`, codeless. An IOService personality on `IOPCIMatch 0x7ec08086` with score 30000 claims the device before AppleUSBXHCIPCI. Nothing is written to the device.
+  - The keyboard (19F5:2620, HS04) and Logitech receiver (HS05) are on the PCH xHCI 7F6E, so they're unaffected.
+  - User step for this boot: unplug the WD19TB dock and any USB-C devices; keyboard and mouse go in rear USB-A ports.
+  - ocvalidate: no issues. Stick config b97c85e6…, kext plist 86acef13….
