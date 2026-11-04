@@ -101,23 +101,41 @@
 				QVBJQw==
 				</data>
 			</dict>
+			<dict>
+				<key>All</key>
+				<false/>
+				<key>Comment</key>
+				<string>Drop DellRtd3 (RTD3 GPIO tables are filled by module-level Stores that macOS ACPICA skips; power methods would toggle GPIO pad 0)</string>
+				<key>Enabled</key>
+				<true/>
+				<key>OemTableId</key>
+				<data>
+				RGVsbFJ0ZDM=
+				</data>
+				<key>TableLength</key>
+				<integer>56991</integer>
+				<key>TableSignature</key>
+				<data>
+				U1NEVA==
+				</data>
+			</dict>
 		</array>
 		<key>Patch</key>
 		<array>
 			<dict>
 				<key>Base</key>
-				<string>\_SB.PC00.LPCB.ECDV._STA</string>
+				<string></string>
 				<key>BaseSkip</key>
 				<integer>0</integer>
 				<key>Comment</key>
-				<string>ECDV _STA to XSTA so SSDT-EC-USBX-AAT2250 can hide the real EC from Darwin (DSDT: ECDV._STA always returns 0x0F)</string>
+				<string>ECDV _STA to XSTA (unique 12-byte match; path-based Base lookup did not apply on 2026-11-03 and SsdtEC failed with AE_ALREADY_EXISTS)</string>
 				<key>Count</key>
 				<integer>1</integer>
 				<key>Enabled</key>
 				<true/>
 				<key>Find</key>
 				<data>
-				X1NUQQ==
+				FAlfU1RBCKQKDxRK
 				</data>
 				<key>Limit</key>
 				<integer>0</integer>
@@ -129,7 +147,7 @@
 				</data>
 				<key>Replace</key>
 				<data>
-				WFNUQQ==
+				FAlYU1RBCKQKDxRK
 				</data>
 				<key>ReplaceMask</key>
 				<data>
