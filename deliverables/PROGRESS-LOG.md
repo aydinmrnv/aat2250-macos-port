@@ -283,3 +283,17 @@
   - **Private config:** `ROM` = the onboard Killer E3100G MAC, for iServices. Not in the public repo.
   - **New:** `tools/make-postinstall-config.py`, the RTX 5090 driver profile (AMFI args, nvfb args, IONDRVSupport blocked, DisableIoMapperMapping, AMFIPass). Output validated. AMFIPass is still to be reviewed and pinned.
   - **New:** `DAILY-DRIVER.md`, the roadmap.
+
+## 2026-11-04: Eleventh boot (VMDProbe on, shutdown fix in): Recovery, results saved
+- **Results** (in `private/boot-results-20261104/`, not public):
+  - `hw.logicalcpu 24`, `MacPro7,1`, brand string "Intel(R) Core(TM) Ultra 9 285K".
+  - diskutil shows only the recovery ramdisk and the stick; no internal disks, as expected behind VMD.
+- **VMDProbe v0.0.1:** "scanned; no functions found".
+  - VMCAP 0x1, **VMCONFIG 0x2F01: bus-restrict encoding 3**, CFGBAR 256 MB, 32 MSI-X vectors, command 0x6.
+  - Linux and FreeBSD both reject encoding 3 ("Unknown Bus Offset Setting (3)"). It's a known open issue on Arrow Lake: kernel bugzilla 221136 (Feb 2026), and a linux-pci thread for an MSI 275HX with 8086:ad0b and the same VMCONFIG low half 0x2F01. That reporter found NVMe on buses 0xE2/0xE3 with "3 → 224" and relative ECAM numbering, so the probe's bus window is probably right.
+  - **But macOS relocated the VMD BARs:** CFGBAR went from 0xB8_2000_0000 (firmware/Windows) to **0x8000_0000**, MEMBAR2 from high memory to 0x6500_0000; MEMBAR1 stayed at 0x7200_0000. Whether the new CFGBAR address reaches the VMD is the open question.
+  - **VMDProbe v0.0.2** (sha256 fae35fd2…) scans the whole CFGBAR (256 ECAM bus slots, which covers relative and absolute numbering) and counts all-ones, zero and data reads (all-ones means the address isn't decoded). It also records the raw BAR registers. Read-only, on the stick.
+- **Dock works without a connection manager:**
+  - WD19TB enumerated (Titan Ridge xHCI, AppleUSBXHCITR), with hubs, the "Kick75 IO" keyboard, **"Realtek USB2.0 Audio" as an IOAudio device**, and **dock Ethernet as en1** (AppleUserECM).
+  - Both onboard xHCIs (XHCI@14 PCH, TXHC@d TCSS) are on AppleUSBXHCIPCI.
+- **Onboard Ethernet:** LucyRTL8125 1.2.4 → `en0`, primary interface, link up at 1 Gbps.

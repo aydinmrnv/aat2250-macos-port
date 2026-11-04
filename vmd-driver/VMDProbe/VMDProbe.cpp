@@ -148,32 +148,42 @@ bool VMDProbe::start(IOService *provider)
     }
     volatile uint8_t *base = (volatile uint8_t *)map->getVirtualAddress();
     const uint64_t size = map->getLength();
-    unsigned buses = (unsigned)(size >> 20);
-    if (busStart + buses > 256) buses = 256 - busStart;
+    /* v0.0.2: VMCONFIG bus-restrict encoding 3 (seen on this machine, 0x2F01) is undefined in the Linux and FreeBSD
+     * drivers, and v0.0.1's 32-bus scan from 224 found nothing. Scan the whole CFGBAR (every ECAM bus slot it holds),
+     * so both relative (bus - busStart) and absolute bus numbering are covered, and count what the reads return. */
+    const unsigned buses = (unsigned)((size >> 20) > 256 ? 256 : (size >> 20));
     setProperty("VMDCfgBarPhys", map->getPhysicalAddress(), 64);
     setProperty("VMDCfgBarSize", size, 64);
     setProperty("VMDBusCount", buses, 16);
-    VMD_LOG("VMCAP %04x VMCONFIG %04x busStart %u buses %u CFGBAR %llu MB", vmcap, vmcfg, busStart, buses,
-            size >> 20);
+    setProperty("VMDBAR0Raw", pci->configRead32(kIOPCIConfigBaseAddress0), 32);
+    setProperty("VMDBAR1Raw", pci->configRead32(kIOPCIConfigBaseAddress1), 32);
+    setProperty("VMDBAR2Raw", pci->configRead32(kIOPCIConfigBaseAddress2), 32);
+    setProperty("VMDBAR4Raw", pci->configRead32(kIOPCIConfigBaseAddress4), 32);
+    VMD_LOG("VMCAP %04x VMCONFIG %04x busStart %u CFGBAR %llu MB, scanning %u ECAM buses", vmcap, vmcfg, busStart,
+            size >> 20, buses);
 
     OSArray *topo = OSArray::withCapacity(16);
     unsigned found = 0;
+    uint32_t nOnes = 0, nZero = 0, nOther = 0;
     for (unsigned b = 0; topo && b < buses && found < kVMDMaxFunctions; b++)
         for (unsigned d = 0; d < 32 && found < kVMDMaxFunctions; d++)
             for (unsigned f = 0; f < 8 && found < kVMDMaxFunctions; f++) {
                 volatile uint8_t *fn = base + ((uint64_t)b << 20) + ((uint64_t)d << 15) + ((uint64_t)f << 12);
                 const uint32_t id = rd32(fn, 0);
-                if (id == 0xFFFFFFFFu || id == 0) {
-                    if (f == 0) break;
-                    continue;
-                }
-                OSDictionary *e = describe(fn, busStart + b, d, f);
+                if (id == 0xFFFFFFFFu) { nOnes++; if (f == 0) break; continue; }
+                if (id == 0) { nZero++; if (f == 0) break; continue; }
+                nOther++;
+                /* bus reported as the ECAM slot index; busStart is published separately for interpretation */
+                OSDictionary *e = describe(fn, b, d, f);
                 if (e) { topo->setObject(e); e->release(); found++; }
                 if (f == 0 && !((rd32(fn, 0x0C) >> 16) & 0x80)) break;   /* single-function device */
             }
     if (topo) { setProperty("VMDTopology", topo); topo->release(); }
-    setProperty("VMDStatus", found ? "scanned" : "scanned; no functions found");
-    VMD_LOG("%u functions published in VMDTopology", found);
+    setProperty("VMDReadsAllOnes", nOnes, 32);
+    setProperty("VMDReadsZero", nZero, 32);
+    setProperty("VMDReadsData", nOther, 32);
+    setProperty("VMDStatus", found ? "scanned (bus = ECAM slot index)" : "scanned; no functions found");
+    VMD_LOG("%u functions published; reads: %u all-ones, %u zero, %u data", found, nOnes, nZero, nOther);
 
     map->release();   /* nothing stays mapped */
     return true;
