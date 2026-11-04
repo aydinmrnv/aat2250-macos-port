@@ -8,9 +8,14 @@
 **Status (2026-11-04): this config boots macOS Tahoe Recovery on the AAT2250.** It took ten test boots; the progress log
 (`deliverables/PROGRESS-LOG.md`) has each failure and its fix.
 
-**Current test: VMDProbe.** All internal disks sit behind Intel VMD, which macOS cannot see by itself. The read-only
-VMDProbe driver is switched on (`-vmdprobe`) to list what is behind VMD, including the SATA SSD meant for macOS (D:).
-USB4Probe and VMDBridge stay off. If this boot freezes before Recovery, VMDProbe is the only change, so take a photo.
+**Current test: VMDProbe v0.0.2 + VMDBridge level 1.** All internal disks sit behind Intel VMD, which macOS cannot see
+by itself.
+- **VMDProbe** (read-only) scans the whole VMD config window and counts what the reads return.
+- **VMDBridge level 1** (`-vmdbridge`) tries to expose the SATA controller behind VMD as a second PCI root, with its
+  class disguised so no storage driver attaches (no disk reads or writes). It refuses and records why if anything is
+  unexpected. The Windows NVMe stays hidden by design.
+
+USB4Probe stays off. If this boot freezes before Recovery, photograph the bottom of the screen.
 Also new in this config: `SSDT-FIXSHUTDOWN-AAT2250`, so Shut Down should power off instead of restarting.
 
 You need:
@@ -120,10 +125,10 @@ The stick should now hold `EFI/` and `com.apple.recovery.boot/` at its top level
    the stick, then `ls -la` lists the files so you can check they are there:
 
    ```bash
-   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
+   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 -r -c VMDController > vmdbridge.txt; ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
    ```
 
-   You should see `vmdprobe.txt`, `ioreg-full.txt`, `kexts.txt`, `disks.txt`, `sysctl.txt` and `volumes.txt`, each with
+   You should see `vmdprobe.txt`, `vmdbridge.txt`, `ioreg-full.txt`, `kexts.txt`, `disks.txt`, `sysctl.txt` and `volumes.txt`, each with
    a size above 0 (`ioreg-full.txt` is several MB). When USB4Probe is switched on in a later test, also run:
 
    ```bash

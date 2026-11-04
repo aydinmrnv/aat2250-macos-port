@@ -297,3 +297,7 @@
   - WD19TB enumerated (Titan Ridge xHCI, AppleUSBXHCITR), with hubs, the "Kick75 IO" keyboard, **"Realtek USB2.0 Audio" as an IOAudio device**, and **dock Ethernet as en1** (AppleUserECM).
   - Both onboard xHCIs (XHCI@14 PCH, TXHC@d TCSS) are on AppleUSBXHCIPCI.
 - **Onboard Ethernet:** LucyRTL8125 1.2.4 → `en0`, primary interface, link up at 1 Gbps.
+- **Twelfth-attempt config (saves a round trip):**
+  - VMDProbe v0.0.2 **plus VMDBridge level 1** (`-vmdbridge`, binary sha256 7a78d810…, unchanged). Level 1 disguises the class as 0x018000, so no storage driver attaches and there is no disk I/O. It refuses cleanly if there is no AHCI function, more than one, an ABI mismatch, or a bad ABAR.
+  - Both kexts match 8086:AD0B with score 0 in the default category, so only one would have started. VMDProbe now has its own `IOMatchCategory` (VMDProbe) and co-exists with VMDBridge. Rebuilt and on the stick.
+  - Save command now also writes `vmdbridge.txt` (`ioreg -r -c VMDController`). ocvalidate: no issues. Stick config e9e21e93….

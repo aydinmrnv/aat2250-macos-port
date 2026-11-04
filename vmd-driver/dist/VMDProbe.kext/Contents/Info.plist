@@ -26,6 +26,8 @@
 			<string>org.aat2250.driver.VMDProbe</string>
 			<key>IOClass</key>
 			<string>VMDProbe</string>
+			<key>IOMatchCategory</key>
+			<string>VMDProbe</string>
 			<key>IOPCIMatch</key>
 			<string>0xad0b8086</string>
 			<key>IOProbeScore</key>
