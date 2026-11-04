@@ -913,7 +913,7 @@
 				<key>Comment</key>
 				<string>phase 0, read-only; active only with -vmdprobe</string>
 				<key>Enabled</key>
-				<false/>
+				<true/>
 				<key>ExecutablePath</key>
 				<string>Contents/MacOS/VMDProbe</string>
 				<key>MaxKernel</key>
@@ -1217,7 +1217,7 @@
 				AAAAAAAAAAAAAAAAAAA=
 				</data>
 				<key>boot-args</key>
-				<string>-v keepsyms=1 debug=0x100 -lilubetaall</string>
+				<string>-v keepsyms=1 debug=0x100 -lilubetaall -vmdprobe</string>
 				<key>csr-active-config</key>
 				<data>
 				QwoAAA==
