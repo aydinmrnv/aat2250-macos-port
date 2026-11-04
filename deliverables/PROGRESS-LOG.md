@@ -234,3 +234,8 @@
     - `ReleaseUsbOwnership=true`.
   - Not verified: loading the patched DSDT in ACPICA 20160930 acpiexec. Building ACPICA from source on the Mac was blocked by the permission classifier; it needs the user's OK.
   - ocvalidate: no issues. Stick config eb462084….
+- **Eighth attempt: the ACPI fix worked.** No `AE_NOT_FOUND` errors. Both PCI domains were configured: one pass "bridges 7, devices 16", then PC00 "bridges 10, devices 26". `Console relocated to 0xa018000000`, then "Previous shutdown cause: 5", then "SMOS has arrived".
+  - **Dock finding:** `pci8086,15f0` (the WD19TB's Titan Ridge xHCI) was enumerated by macOS. The Dell firmware leaves the dock's PCIe tunnel up at handoff, which answers the D0 question: dock USB, Ethernet and audio may work through Apple's own drivers without our connection manager. Hot-plug still needs one.
+  - **Then it stopped for 4 hours.** The last output was USBToolBox polling controllers (TXHC, which our blocker was holding; TDM0, the NHI rather than a USB controller; XHCI; 15f0): "waitForMatchingService failed or timed out", fallbacks, "Installed controller notifier". Nothing after that.
+  - Change for the ninth attempt: USBToolBox, UTBDefault and the TXHC blocker are disabled. USB is left to Apple's drivers, and the TCSS USB-C ports and the dock's xHCI are included again. The Legion Arrow Lake build boots without USBToolBox. The earlier TXHC errors were a symptom of the DSDT rejection, now fixed.
+  - Enabled set: MCEReporterDisabler, Lilu, CpuTscSync, VirtualSMC, SMCProcessor, RestrictEvents, CpuTopologyRebuild, LucyRTL8125Ethernet. ocvalidate: no issues. Stick config 921b8689….

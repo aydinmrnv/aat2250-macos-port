@@ -553,7 +553,7 @@
 				<key>Comment</key>
 				<string>Codeless: keep AppleUSBXHCIPCI off the TCSS xHCI 8086:7EC0 (boot froze after its _DSM errors)</string>
 				<key>Enabled</key>
-				<true/>
+				<false/>
 				<key>ExecutablePath</key>
 				<string></string>
 				<key>MaxKernel</key>
@@ -787,7 +787,7 @@
 				<key>Comment</key>
 				<string>A3: USB map driver | pin USBToolBox-1.2.0-RELEASE.zip sha256:c315a3a5acfd496dd97d0d19b4fbd1d487103d2fd541c5651583d4c9cebcfe07 (GitHub digest)</string>
 				<key>Enabled</key>
-				<true/>
+				<false/>
 				<key>ExecutablePath</key>
 				<string>Contents/MacOS/USBToolBox</string>
 				<key>MaxKernel</key>
@@ -805,7 +805,7 @@
 				<key>Comment</key>
 				<string>A3: generic map until a real UTBMap.kext exists (physical port test) | version+SHA256 pin UNRESOLVED</string>
 				<key>Enabled</key>
-				<true/>
+				<false/>
 				<key>ExecutablePath</key>
 				<string></string>
 				<key>MaxKernel</key>
