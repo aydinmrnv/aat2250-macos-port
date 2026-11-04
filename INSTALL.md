@@ -42,9 +42,11 @@ This is the first install attempt. In one boot, it:
 ## Step 4: install
 1. Choose **Reinstall macOS Tahoe**, then Continue, and agree to the licence.
 2. Pick **Macintosh HD**, the Samsung.
-3. It downloads, then restarts several times. **Leave the stick in and touch nothing.**
-   - At each restart the OpenCore menu shows for 10 seconds and should pick **macOS Installer**, later **Macintosh HD**, by itself.
-   - If a restart lands back in Recovery, or in Windows, note it and tell me. Nothing is broken.
+3. It downloads, then restarts several times. **Leave the stick in.**
+   - **At every restart, tap F12 and choose the USB stick again.** The firmware's default is Windows, and only an F12 pick (or USB first in the BIOS boot order, if you choose to change that yourself) starts OpenCore.
+   - **If a restart switches the PC off instead,** power it on and tap F12. This config carries a restart fix (FADT reset register → 0xCF9), but it isn't tested yet.
+   - **If it lands in Windows,** just restart and use F12. The installer's next step is remembered by OpenCore, not lost.
+   - In the OpenCore menu (10 seconds) it should pick **macOS Installer**, later **Macintosh HD**, by itself. If it lands back in Recovery instead, tell me.
    - If the screen freezes for more than 10 minutes, take a photo.
 4. It ends at the setup assistant (country, account). Set up a local user account. Skipping the Apple ID for now is fine.
 

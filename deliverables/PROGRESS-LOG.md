@@ -350,3 +350,4 @@
 - **Checks before the erase:**
   - Windows' WinRE is on the NVMe (ReAgent.xml offset ≈1880.8 GB, the 2 TB disk). The Samsung's Recovery/EFI partitions are leftovers.
   - Every folder still on D: was compared again with its copy on E: (file count and bytes identical).
+- **Restart fix staged:** under macOS, Restart powered the PC off. The FADT reset register is Dell's SMI port (I/O 0xB2, value 0x73). An OpenCore ACPI patch on FACP (macOS only) points it at the PCH Reset Control register (I/O 0xCF9, value 0x06, hard reset). The firmware's boot default is Windows, so INSTALL.md now says to use F12 → USB at every installer restart.
