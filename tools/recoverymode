@@ -1,0 +1,4 @@
+#!/bin/sh
+# Back to recovery-only mode (USB entries only):  sh /Volumes/OPENCORE/recoverymode
+cd /Volumes/OPENCORE/EFI/OC || exit 1
+cp config-recovery.plist config.plist && sync && echo "RECOVERY MODE ON"

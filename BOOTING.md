@@ -98,7 +98,7 @@ tools/get-recovery.sh ~/aat2250-recovery
    ```
 
    ```bash
-   cp tools/go /Volumes/OPENCORE/go
+   cp tools/go tools/installmode tools/recoverymode /Volumes/OPENCORE/
    ```
 5. Eject:
 
@@ -106,7 +106,7 @@ tools/get-recovery.sh ~/aat2250-recovery
    diskutil eject OPENCORE
    ```
 
-The stick should now hold `EFI/`, `com.apple.recovery.boot/` and `go` at its top level.
+The stick should now hold `EFI/`, `com.apple.recovery.boot/`, `go`, `installmode` and `recoverymode` at its top level.
 
 ## Step 4: boot it (on the Alienware)
 1. Shut down. Leave the **WD19TB dock connected** the way it normally is: its state is part of the test.

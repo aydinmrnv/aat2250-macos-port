@@ -1179,7 +1179,7 @@
 			<key>PollAppleHotKeys</key>
 			<false/>
 			<key>ShowPicker</key>
-			<true/>
+			<false/>
 			<key>TakeoffDelay</key>
 			<integer>0</integer>
 			<key>Timeout</key>
@@ -1231,7 +1231,7 @@
 			<data>
 			</data>
 			<key>ScanPolicy</key>
-			<integer>3604482</integer>
+			<integer>2097154</integer>
 			<key>SecureBootModel</key>
 			<string>Disabled</string>
 			<key>Vault</key>

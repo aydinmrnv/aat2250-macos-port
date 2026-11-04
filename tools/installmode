@@ -1,0 +1,5 @@
+#!/bin/sh
+# Switch the stick to install mode: OpenCore will also boot macOS from the SATA disk (Samsung).
+# Run in Recovery Terminal AFTER erasing the Samsung:  sh /Volumes/OPENCORE/installmode
+cd /Volumes/OPENCORE/EFI/OC || exit 1
+cp config-install.plist config.plist && sync && echo "INSTALL MODE ON - now close Terminal and choose Reinstall macOS Tahoe"

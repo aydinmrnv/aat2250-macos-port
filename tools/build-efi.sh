@@ -84,7 +84,19 @@ plutil -replace PlatformInfo.Generic.MLB -string "$MLB" "$CFG"
 plutil -replace PlatformInfo.Generic.SystemUUID -string "$(uuidgen)" "$CFG"
 plutil -replace PlatformInfo.Generic.ROM -data "$(head -c 6 /dev/urandom | base64)" "$CFG"
 
+# Two modes (tools/installmode, tools/recoverymode swap them on the stick):
+#  recovery: USB devices only, no picker; boots the Recovery image on the stick, never another OS.
+#  install:  also SATA/SAS/SCSI/ATAPI (never NVMe), picker shown for 10 s; boots macOS from the Samsung.
+plutil -replace Misc.Security.ScanPolicy -integer 2097154 "$CFG"
+plutil -replace Misc.Boot.ShowPicker -bool NO "$CFG"
+cp "$CFG" "$OUT/EFI/OC/config-recovery.plist"
+cp "$CFG" "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Security.ScanPolicy -integer 3604482 "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Boot.ShowPicker -bool YES "$OUT/EFI/OC/config-install.plist"
+cp "$REPO/tools/go" "$REPO/tools/installmode" "$REPO/tools/recoverymode" "$OUT/"
+
 OCV=$WORK/x/OpenCore/Utilities/ocvalidate/ocvalidate
 chmod +x "$OCV"
 "$OCV" "$CFG"
+"$OCV" "$OUT/EFI/OC/config-install.plist"
 echo "EFI ready at $OUT/EFI (contains your generated SMBIOS: keep it private)"
