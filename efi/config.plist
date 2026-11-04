@@ -143,6 +143,291 @@
 				RFNEVA==
 				</data>
 			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>If (PCHA != Zero) { Device (PC02) } -&gt; Scope (\_SB)</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				oE4vkpNQQ0hBAFuC
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				EE4vXF9TQl+jo1uC
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>If (PCHA != Zero) { MNVB, Scope (_SB.PC02) } -&gt; Scope (\)</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				oIdfG5KTUENIQQAITU5WQg==
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				EIdfG1wAo6Ojo6MITU5WQg==
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>PC00.SBSC: Name SBRG + SBRG = \SBRG -&gt; Method (SBRG)</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				CFNCUkcAcFxTQlJHU0JSRw==
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				FAxTQlJHAKRcU0JSR6Ojow==
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>PC02.SBPC: Name SBRG + SBRG = ^SBRG -&gt; Method (SBRG)</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				CFNCUkcAcF5TQlJHU0JSRw==
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				FA1TQlJHAKReXlNCUkejow==
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>PC00.XHCI (PPID 0x3A): DUWS/PU2C/PU3C stores -&gt; Methods</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				CERVV1MACFBVMkMACFBVM0MACEFIV0EBCFBQSUQKOnBc
+				RFVXU0RVV1NwXFBVMkNQVTJDcFxQVTNDUFUzQw==
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				CEFIV0EBCFBQSUQKOhQMRFVXUwCkXERVV1MUDFBVMkMA
+				pFxQVTJDFAxQVTNDAKRcUFUzQ6Ojo6Ojo6Ojow==
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>PC02.XHCI (PPID 0x4F): DUWS/PU2C/PU3C stores -&gt; Methods</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				CERVV1MACFBVMkMACFBVM0MACEFIV0EBCFBQSUQKT3Bc
+				RFVXU0RVV1NwXlBVMkNQVTJDcF5QVTNDUFUzQw==
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				CEFIV0EBCFBQSUQKTxQMRFVXUwCkXERVV1MUDVBVMkMA
+				pF5eUFUyQxQNUFUzQwCkXl5QVTNDo6Ojo6Ojow==
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
+			<dict>
+				<key>Base</key>
+				<string></string>
+				<key>BaseSkip</key>
+				<integer>0</integer>
+				<key>Comment</key>
+				<string>\_SB.PGPI (GPIO, INTC1084): SBRG/GEI*/GED* = ^PC02.* -&gt; Methods</string>
+				<key>Count</key>
+				<integer>1</integer>
+				<key>Enabled</key>
+				<true/>
+				<key>Find</key>
+				<data>
+				CFNCUkcAcF4uUEMwMlNCUkdTQlJHCEdFSTAAcF4uUEMw
+				MkdFSTBHRUkwCEdFSTEAcF4uUEMwMkdFSTFHRUkxCEdF
+				STIAcF4uUEMwMkdFSTJHRUkyCEdFRDAAcF4uUEMwMkdF
+				RDBHRUQwCEdFRDEAcF4uUEMwMkdFRDFHRUQxCEdFRDIA
+				cF4uUEMwMkdFRDJHRUQy
+				</data>
+				<key>Limit</key>
+				<integer>0</integer>
+				<key>Mask</key>
+				<data>
+				</data>
+				<key>OemTableId</key>
+				<data>
+				</data>
+				<key>Replace</key>
+				<data>
+				FBJTQlJHAKReXi5QQzAyU0JSRxQSR0VJMACkXl4uUEMw
+				MkdFSTAUEkdFSTEApF5eLlBDMDJHRUkxFBJHRUkyAKRe
+				Xi5QQzAyR0VJMhQSR0VEMACkXl4uUEMwMkdFRDAUEkdF
+				RDEApF5eLlBDMDJHRUQxFBJHRUQyAKReXi5QQzAyR0VE
+				MqOjo6Ojo6Ojo6Ojo6Oj
+				</data>
+				<key>ReplaceMask</key>
+				<data>
+				</data>
+				<key>Skip</key>
+				<integer>0</integer>
+				<key>TableLength</key>
+				<integer>0</integer>
+				<key>TableSignature</key>
+				<data>
+				RFNEVA==
+				</data>
+			</dict>
 		</array>
 		<key>Quirks</key>
 		<dict>
@@ -289,6 +574,24 @@
 				<true/>
 				<key>ExecutablePath</key>
 				<string>Contents/MacOS/Lilu</string>
+				<key>MaxKernel</key>
+				<string></string>
+				<key>MinKernel</key>
+				<string></string>
+				<key>PlistPath</key>
+				<string>Contents/Info.plist</string>
+			</dict>
+			<dict>
+				<key>Arch</key>
+				<string>x86_64</string>
+				<key>BundlePath</key>
+				<string>CpuTscSync.kext</string>
+				<key>Comment</key>
+				<string>TSC sync (Arrow Lake firmware leaves non-zero IA32_TSC_ADJUST)</string>
+				<key>Enabled</key>
+				<true/>
+				<key>ExecutablePath</key>
+				<string>Contents/MacOS/CpuTscSync</string>
 				<key>MaxKernel</key>
 				<string></string>
 				<key>MinKernel</key>
@@ -977,7 +1280,7 @@
 			<key>MaxBIOSVersion</key>
 			<false/>
 			<key>ProcessorType</key>
-			<integer>0</integer>
+			<integer>3841</integer>
 			<key>ROM</key>
 			<data>
 			AAAAAAAA
@@ -1254,7 +1557,7 @@
 			<key>IgnoreInvalidFlexRatio</key>
 			<false/>
 			<key>ReleaseUsbOwnership</key>
-			<false/>
+			<true/>
 			<key>ReloadOptionRoms</key>
 			<false/>
 			<key>RequestBootVarRouting</key>

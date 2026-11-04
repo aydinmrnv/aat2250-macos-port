@@ -29,6 +29,7 @@ PINS=(
   "LucyRTL8125Ethernet|https://github.com/Mieze/LucyRTL8125Ethernet/releases/download/v1.2.4/LucyRTL8125Ethernet-V1.2.4.zip|a4e24a0246fff0bc059be4b832b7e4c800261364868632df2f38a2bf998e3956"
   "BrcmPatchRAM|https://github.com/acidanthera/BrcmPatchRAM/releases/download/2.7.2/BrcmPatchRAM-2.7.2-RELEASE.zip|e1c1c55347526d031a8ae2fdd1f52efa3019161e497fb38e1cfa809752f8af21"
   "IntelBluetooth|https://github.com/OpenIntelWireless/IntelBluetoothFirmware/releases/download/v2.4.0/IntelBluetooth-v2.4.0.zip|78418daa11f620012fc53ba68cbd643c2642a45f2f96c594fd01aaf2bc68fe2b"
+  "CpuTscSync|https://github.com/acidanthera/CpuTscSync/releases/download/1.1.2/CpuTscSync-1.1.2-RELEASE.zip|bc289f780c52015ae788827b3db8e6c2ab9f512992b3a157a4a5c15df1eb4ed3"
   "USBToolBox|https://github.com/USBToolBox/kext/releases/download/1.2.0/USBToolBox-1.2.0-RELEASE.zip|c315a3a5acfd496dd97d0d19b4fbd1d487103d2fd541c5651583d4c9cebcfe07"
 )
 
@@ -57,6 +58,7 @@ kext() {   # copy the first <name>.kext found in an extracted release (skips dSY
   ditto "$src" "$OUT/EFI/OC/Kexts/$2.kext"
 }
 kext Lilu Lilu
+kext CpuTscSync CpuTscSync
 kext VirtualSMC VirtualSMC
 kext VirtualSMC SMCProcessor
 kext RestrictEvents RestrictEvents

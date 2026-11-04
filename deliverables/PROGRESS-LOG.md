@@ -217,3 +217,20 @@
   - The keyboard (19F5:2620, HS04) and Logitech receiver (HS05) are on the PCH xHCI 7F6E, so they're unaffected.
   - User step for this boot: unplug the WD19TB dock and any USB-C devices; keyboard and mouse go in rear USB-A ports.
   - ocvalidate: no issues. Stick config b97c85e6…, kext plist 86acef13….
+- **Seventh attempt: still frozen at the USB `_DSM` errors, with or without the dock.** Root cause found by research.
+  - Source: the Lenovo Legion 5 15IAX10 (Arrow Lake-HX, Tahoe 26.7.2 daily; watchthelight-labs/WTLLegionOpenCore, docs/HOW-IT-WORKS.md). It reports "a silent hang after a `\_SB.UBTC._CRS AE_NOT_FOUND` error", caused by Intel Arrow Lake reference ACPI code that macOS's ACPICA 20160930 mishandles.
+  - The Dell DSDT has the same constructs. Our own `deliverables/acpi/dell_dsdt_patches.py` makes 7 OpenCore patches, each found exactly once in the Dell DSDT and length-preserving:
+    1. `If (PCHA != Zero) { Device (PC02) }` → `Scope (\_SB)`.
+    2. The root `If (PCHA != Zero) { MNVB … Scope (_SB.PC02) }` → `Scope (\)`.
+    3. `PC00.SBSC`: `Name SBRG` + `SBRG = \SBRG` → a Method.
+    4. `PC02.SBPC`: `Name SBRG` + `SBRG = ^SBRG` → a Method.
+    5. `PC00.XHCI` (PPID 0x3A): the `DUWS`/`PU2C`/`PU3C` Name+Store pairs → Methods.
+    6. `PC02.XHCI` (PPID 0x4F): the same → Methods.
+    7. `\_SB.PGPI` (PCH GPIO, INTC1084): `SBRG` and `GEI0-2`/`GED0-2` Name+Store pairs → Methods. **This one is not in the Legion set**; it was found by scanning the Dell DSDT for every Name + bare Store pair.
+  - Checked: nothing in the DSDT or SSDTs writes to the converted names. Dell's USB SSDT (`xh_Dell_`) marks HS04/HS05 (keyboard, receiver) connectable; only SS03 is `GUPC (Zero)`, which is probably correct.
+  - Also from the Legion build:
+    - CpuTscSync 1.1.2 (sha256 bc289f78…, matches GitHub's digest). Their first kernel boot panicked with "Non-monotonic time" in `AppleACPICPU::start`.
+    - `ProcessorType 0x0F01` (24 cores with the Comet Lake spoof).
+    - `ReleaseUsbOwnership=true`.
+  - Not verified: loading the patched DSDT in ACPICA 20160930 acpiexec. Building ACPICA from source on the Mac was blocked by the permission classifier; it needs the user's OK.
+  - ocvalidate: no issues. Stick config eb462084….
