@@ -352,3 +352,11 @@
   - Every folder still on D: was compared again with its copy on E: (file count and bytes identical).
 - **Restart fix staged:** under macOS, Restart powered the PC off. The FADT reset register is Dell's SMI port (I/O 0xB2, value 0x73). An OpenCore ACPI patch on FACP (macOS only) points it at the PCH Reset Control register (I/O 0xCF9, value 0x06, hard reset). The firmware's boot default is Windows, so INSTALL.md now says to use F12 → USB at every installer restart.
 - **Boot 14 (attempt):** with USB first in the BIOS boot order, the OpenCore picker listed **Windows**, defaulted to it and got stuck. The OC log on the stick was empty (power cut before it was flushed). The Windows entry most likely came from the old Windows boot files on the not-yet-erased Samsung, which the SATA-enabled ScanPolicy now reaches. **Fix:** two configs on the stick. Recovery mode (default: USB only, no picker) boots straight to Recovery. `sh /Volumes/OPENCORE/installmode`, run after erasing the Samsung, switches to install mode (SATA too, picker 10 s). `build-efi.sh` now writes both, plus the scripts.
+
+## 2026-11-04: Fourteenth boot (VMDBridge 0.2.0, level 2): **macOS read both SATA disks behind VMD**
+- `VMDBridgeStatus` "bridge up (level 2)", config path "IOPCIFamily range (high dword cleared)": the cleared CFGBAR address decodes. AHCI at slot 1, device 0x17; 3 functions seen.
+- **AppleAHCI attached to the exposed 8086:7F62**, with ports PRT4 and PRT7 holding disks:
+  - **WDC WD60EFZX (disk1)**, 6001175126016 bytes: GPT with one basic data partition.
+  - **Samsung SSD 860 EVO 500GB (disk2)**, 500107862016 bytes: GPT with Recovery, EFI, MSR, basic data, Recovery.
+  - 11 reads per disk (the partition tables), 0 errors, 0 retries, 0 writes, total read time 13.6 ms and 1.7 ms. **VMD interrupts and DMA work.**
+- **But DiskArbitration never published them.** `diskutil list` and Disk Utility showed only the ramdisk and the stick (disk0, disk3), and no further reads were issued, so DA never probed them. Cause not yet known; the IOMedia objects are registered, matched and not busy. AppleAHCIPort reports "Physical Interconnect Location" External.
