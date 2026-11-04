@@ -40,6 +40,7 @@ enum {
 };
 
 struct VMDFunction {
+    uint8_t  slot;                     /* ECAM bus slot (bus - busStart) the function really lives on */
     uint8_t  dev, fn;
     uint8_t  firstVisibleCap;          /* virtual value of config 0x34 */
     uint8_t  hiddenCount;
@@ -93,7 +94,7 @@ public:
     void configWrite8(IOPCIAddressSpace space, UInt8 offset, UInt8 data) override;
 private:
     const VMDFunction *lookup(IOPCIAddressSpace space) const;
-    volatile uint8_t *addr(IOPCIAddressSpace space, unsigned reg) const;
+    volatile uint8_t *addr(const VMDFunction *f, unsigned reg) const;
     uint32_t virtualRead32(const VMDFunction *f, IOPCIAddressSpace space, unsigned reg) const;
     bool writeAllowed(const VMDFunction *f, unsigned reg, unsigned len) const;
 
@@ -174,18 +175,23 @@ const VMDFunction *VMDHostBridge::lookup(IOPCIAddressSpace space) const
     return nullptr;
 }
 
-volatile uint8_t *VMDHostBridge::addr(IOPCIAddressSpace space, unsigned reg) const
+volatile uint8_t *VMDHostBridge::addr(const VMDFunction *f, unsigned reg) const
 {
-    /* ECAM index is bus - busStart, and only the root bus is ever visible, so it is always 0. */
-    return fECAM + ((uint64_t)space.s.deviceNum << 15) + ((uint64_t)space.s.functionNum << 12) + reg;
+    /* v0.1.2: boot 13 found the AHCI function at ECAM slot 1 (bus busStart+1), device 0x17, not on the VMD root bus.
+     * IOPCIFamily sees it on the one virtual bus fBus at the same device/function; the real slot is used here. */
+    return fECAM + ((uint64_t)f->slot << 20) + ((uint64_t)f->dev << 15) + ((uint64_t)f->fn << 12) + reg;
 }
 
-uint32_t VMDHostBridge::virtualRead32(const VMDFunction *f, IOPCIAddressSpace space, unsigned reg) const
+uint32_t VMDHostBridge::virtualRead32(const VMDFunction *f, IOPCIAddressSpace, unsigned reg) const
 {
-    uint32_t v = *(volatile uint32_t *)addr(space, reg);
+    uint32_t v = *(volatile uint32_t *)addr(f, reg);
     switch (reg) {
         case 0x08:                                           /* class code in bits 31:8 */
             if (fLevel < 2) v = (v & 0xFF) | ((uint32_t)kVMDClassDisguised << 8);
+            break;
+        case 0x10: case 0x14: case 0x18: case 0x1C: case 0x20:   /* v0.1.2: only BAR5 (ABAR) is shown; */
+        case 0x30:                                               /* the legacy I/O BARs and ROM read 0 */
+            v = 0;
             break;
         case 0x34:
             v = (v & ~0xFFu) | f->firstVisibleCap;
@@ -205,6 +211,8 @@ bool VMDHostBridge::writeAllowed(const VMDFunction *f, unsigned reg, unsigned le
 {
     for (unsigned i = 0; i < f->hiddenCount; i++)
         if (reg + len > f->hiddenOff[i] && reg < (unsigned)f->hiddenOff[i] + f->hiddenLen[i]) return false;
+    if (reg < 0x24 && reg + len > 0x10) return false;       /* hidden BARs 0-4 */
+    if (reg < 0x34 && reg + len > 0x30) return false;       /* hidden expansion ROM */
     return !(reg <= 0x3D && reg + len > 0x3D);              /* never let anyone set the pin */
 }
 
@@ -235,7 +243,7 @@ void VMDHostBridge::configWrite32(IOPCIAddressSpace space, UInt8 offset, UInt32 
     const VMDFunction *f = lookup(space);
     if (!f || reg >= 0x1000 || !writeAllowed(f, reg, 4)) return;
     IOSimpleLockLock(fLock);
-    *(volatile uint32_t *)addr(space, reg) = data;
+    *(volatile uint32_t *)addr(f, reg) = data;
     IOSimpleLockUnlock(fLock);
 }
 
@@ -245,7 +253,7 @@ void VMDHostBridge::configWrite16(IOPCIAddressSpace space, UInt8 offset, UInt16 
     const VMDFunction *f = lookup(space);
     if (!f || reg >= 0x1000 || !writeAllowed(f, reg, 2)) return;
     IOSimpleLockLock(fLock);
-    *(volatile uint16_t *)addr(space, reg) = data;
+    *(volatile uint16_t *)addr(f, reg) = data;
     IOSimpleLockUnlock(fLock);
 }
 
@@ -255,7 +263,7 @@ void VMDHostBridge::configWrite8(IOPCIAddressSpace space, UInt8 offset, UInt8 da
     const VMDFunction *f = lookup(space);
     if (!f || reg >= 0x1000 || !writeAllowed(f, reg, 1)) return;
     IOSimpleLockLock(fLock);
-    *(volatile uint8_t *)addr(space, reg) = data;
+    *(volatile uint8_t *)addr(f, reg) = data;
     IOSimpleLockUnlock(fLock);
 }
 
@@ -271,7 +279,7 @@ public:
     bool start(IOService *provider) override;
 private:
     static bool abiMatches();
-    unsigned findAllowed(volatile uint8_t *ecam, VMDFunction *out);
+    unsigned findAllowed(volatile uint8_t *ecam, VMDFunction *out, unsigned *seen);
     static void buildCapView(volatile uint8_t *fn, VMDFunction *f);
     static bool sizeABAR(volatile uint8_t *fn, uint64_t *base, uint64_t *len);
 
@@ -355,22 +363,26 @@ bool VMDController::sizeABAR(volatile uint8_t *fn, uint64_t *base, uint64_t *len
     return *base != 0;
 }
 
-/* Root-bus, type-0, SATA AHCI functions only. Bridges (and so the NVMe behind its root port) never qualify. */
-unsigned VMDController::findAllowed(volatile uint8_t *ecam, VMDFunction *out)
+/* Type-0 SATA AHCI functions only, on ECAM slots 0-31 (buses busStart..busStart+31; boot 13 showed aliases from
+ * slot 128 up). Bridges, and so the NVMe behind its root port, never qualify. *seen counts every function found. */
+unsigned VMDController::findAllowed(volatile uint8_t *ecam, VMDFunction *out, unsigned *seen)
 {
     unsigned n = 0;
+    *seen = 0;
+    for (unsigned s = 0; s < 32; s++)
     for (unsigned d = 0; d < 32; d++)
         for (unsigned f = 0; f < 8 && n < kVMDMaxAllowed; f++) {
-            volatile uint8_t *fn = ecam + ((uint64_t)d << 15) + ((uint64_t)f << 12);
+            volatile uint8_t *fn = ecam + ((uint64_t)s << 20) + ((uint64_t)d << 15) + ((uint64_t)f << 12);
             const uint32_t id = *(volatile uint32_t *)fn;
             if (id == 0xFFFFFFFFu || id == 0) { if (f == 0) break; continue; }
             const uint32_t hdr = (*(volatile uint32_t *)(fn + 0x0C) >> 16) & 0xFF;
             const uint32_t cls = *(volatile uint32_t *)(fn + 0x08) >> 8;
-            VMD_LOG("root %02x.%u %04x:%04x class %06x hdr %02x", d, f, id & 0xFFFF, id >> 16, cls, hdr);
+            (*seen)++;
+            VMD_LOG("slot %u %02x.%u %04x:%04x class %06x hdr %02x", s, d, f, id & 0xFFFF, id >> 16, cls, hdr);
             if ((hdr & 0x7F) == 0 && cls == kVMDClassAHCI) {
                 VMDFunction *v = &out[n++];
                 bzero(v, sizeof *v);
-                v->dev = (uint8_t)d; v->fn = (uint8_t)f;
+                v->slot = (uint8_t)s; v->dev = (uint8_t)d; v->fn = (uint8_t)f;
                 buildCapView(fn, v);
             }
             if (f == 0 && !(hdr & 0x80)) break;
@@ -387,6 +399,8 @@ bool VMDController::start(IOService *provider)
     if (pci->configRead16(kIOPCIConfigVendorID) != 0x8086 || pci->configRead16(kIOPCIConfigDeviceID) != 0xAD0B)
         return false;
     if (!abiMatches()) { pci->setProperty("VMDBridgeStatus", "IOPCIHostBridge ABI mismatch"); return false; }
+    uint32_t origHigh[2] = { 0, 0 };
+    bool viaFirmwareAddress = false;
 
     const uint16_t cmd = pci->configRead16(kIOPCIConfigCommand);
     if (!(cmd & kIOPCICommandMemorySpace)) { setProperty("VMDStatus", "memory decode off"); return false; }
@@ -402,6 +416,7 @@ bool VMDController::start(IOService *provider)
         bool fixed = false;
         for (unsigned i = 0; i < 2; i++) {
             const uint32_t l = pci->configRead32(lo[i]), h = pci->configRead32(lo[i] + 4);
+            origHigh[i] = h;
             IODeviceMemory *m = pci->getDeviceMemoryWithRegister(lo[i]);
             pci->setProperty(before[i], h, 32);
             if ((l & 0x7) != 0x4 || !h || !m) continue;
@@ -434,15 +449,48 @@ bool VMDController::start(IOService *provider)
     {
     volatile uint8_t *ecam = (volatile uint8_t *)fCfgMap->getVirtualAddress();
 
+    /* v0.1.2: prove the cleared address decodes (the VMD root port sits at slot 0). If nothing answers there,
+     * put the firmware's high dwords back and map the address that VMDProbe read successfully in boot 13. */
+    bool any = false;
+    for (unsigned d = 0; d < 32 && !any; d++) any = *(volatile uint32_t *)(ecam + ((uint64_t)d << 15)) != 0xFFFFFFFFu;
+    if (!any && (origHigh[0] || origHigh[1])) {
+        const uint64_t len = fCfgMap->getLength();
+        OSSafeReleaseNULL(fCfgMap);
+        pci->configWrite16(kIOPCIConfigCommand, (uint16_t)(cmd & ~kIOPCICommandMemorySpace));
+        if (origHigh[0]) pci->configWrite32(kIOPCIConfigBaseAddress1, origHigh[0]);
+        if (origHigh[1]) pci->configWrite32(kIOPCIConfigBaseAddress5, origHigh[1]);
+        pci->configWrite16(kIOPCIConfigCommand, cmd);
+        const uint64_t hw = ((uint64_t)pci->configRead32(kIOPCIConfigBaseAddress1) << 32) |
+                            (pci->configRead32(kIOPCIConfigBaseAddress0) & ~0xFull);
+        IOMemoryDescriptor *md = IOMemoryDescriptor::withPhysicalAddress((IOPhysicalAddress)hw, (IOByteCount)len,
+                                                                         kIODirectionInOut);
+        fCfgMap = md ? md->createMappingInTask(kernel_task, 0, kIOMapAnywhere | kIOMapInhibitCache) : nullptr;
+        OSSafeReleaseNULL(md);
+        if (!fCfgMap) { setProperty("VMDStatus", "cleared address dead and firmware address unmappable"); goto fail; }
+        ecam = (volatile uint8_t *)fCfgMap->getVirtualAddress();
+        viaFirmwareAddress = true;
+    }
+    pci->setProperty("VMDBridgeCfgPath", viaFirmwareAddress ? "firmware high address (restored)"
+                                                            : "IOPCIFamily range (high dword cleared)");
+    if (viaFirmwareAddress && level == 2) {
+        setProperty("VMDStatus", "level 2 needs MEMBAR2 where IOPCIFamily put it; staying off");
+        goto fail;
+    }
+
     VMDFunction allowed[kVMDMaxAllowed];
-    const unsigned n = findAllowed(ecam, allowed);
+    unsigned seen = 0;
+    const unsigned n = findAllowed(ecam, allowed, &seen);
+    pci->setProperty("VMDBridgeFunctionsSeen", seen, 32);
     uint64_t abar = 0, abarLen = 0;
     setProperty("VMDLevel", (unsigned long long)level, 32);
     setProperty("VMDBusStart", busStart, 8);
     setProperty("VMDAllowedFunctions", n, 32);
-    if (!n) { setProperty("VMDStatus", "no AHCI function on the VMD root bus"); goto fail; }
+    if (!n) { setProperty("VMDStatus", "no AHCI function in VMD slots 0-31"); goto fail; }
     if (n != 1) { setProperty("VMDStatus", "more than one AHCI function: phase 1 handles exactly one"); goto fail; }
-    if (!sizeABAR(ecam + ((uint64_t)allowed[0].dev << 15) + ((uint64_t)allowed[0].fn << 12), &abar, &abarLen) ||
+    pci->setProperty("VMDBridgeAHCISlot", allowed[0].slot, 8);
+    pci->setProperty("VMDBridgeAHCIDevice", allowed[0].dev, 8);
+    if (!sizeABAR(ecam + ((uint64_t)allowed[0].slot << 20) + ((uint64_t)allowed[0].dev << 15) +
+                  ((uint64_t)allowed[0].fn << 12), &abar, &abarLen) ||
         abar < mem1->getPhysicalAddress() || abar + abarLen > mem1->getPhysicalAddress() + mem1->getLength()) {
         setProperty("VMDStatus", "AHCI ABAR missing or outside MEMBAR1");
         goto fail;
@@ -490,6 +538,7 @@ bool VMDController::start(IOService *provider)
         }
     }
     setProperty("VMDStatus", level == 1 ? "bridge up (level 1: class disguised)" : "bridge up (level 2)");
+    pci->setProperty("VMDBridgeStatus", getProperty("VMDStatus"));
     VMD_LOG("bridge started: bus %u, %u AHCI function(s), ABAR 0x%llx+0x%llx, level %d", busStart, n,
             abar, abarLen, level);
     return true;
@@ -501,6 +550,7 @@ fail:
     if (pci) {
         if (OSObject *s = getProperty("VMDStatus")) pci->setProperty("VMDBridgeStatus", s);
         if (OSObject *n = getProperty("VMDAllowedFunctions")) pci->setProperty("VMDBridgeAllowedFunctions", n);
+        if (OSObject *a = getProperty("VMDABARBase")) pci->setProperty("VMDBridgeABARBase", a);
     }
     OSSafeReleaseNULL(fBridge);
     if (fIC) { fIC->stopVectors(); OSSafeReleaseNULL(fIC); }

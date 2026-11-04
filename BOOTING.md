@@ -8,7 +8,7 @@
 **Status (2026-11-04): this config boots macOS Tahoe Recovery on the AAT2250.** It took ten test boots; the progress log
 (`deliverables/PROGRESS-LOG.md`) has each failure and its fix.
 
-**Current test: VMDProbe v0.0.3 + VMDBridge v0.1.1 level 1.** Boot 12 found why nothing was seen behind VMD: macOS
+**Current test: VMDProbe v0.0.3 + VMDBridge v0.1.2 level 1.** Boot 12 found why nothing was seen behind VMD: macOS
 programmed only the low half of the VMD's 64-bit address registers, so the VMD answered at a different address than
 the one macOS read. VMDBridge now corrects that first. All internal disks sit behind Intel VMD, which macOS cannot see
 by itself.

@@ -313,3 +313,22 @@
   - **VMDBridge v0.1.1** (sha256 0988ca59…) clears the BAR1/BAR5 high dwords before anything else, so the hardware decodes exactly where IOPCIFamily allocated and reserved. It does this only if the BAR is 64-bit typed, IOPCIFamily's range is below 4 GB and equal to the low dword. Memory decode is off during the write. The register values before and after, and any failure reason, are now written onto the VMD's own registry node (`VMDBridgeStatus`), so they survive a failed start.
   - **VMDProbe v0.0.3** (sha256 fdcb0568…, still read-only) maps the address the hardware actually decodes, `(BAR1 << 32) | BAR0`, and records it next to IOPCIFamily's address (`VMDCfgBarHWPhys` / `VMDCfgBarOSPhys`).
   - **One-word save:** the stick now holds a `go` script (`tools/go` in the repo). In Recovery Terminal: `sh /Volumes/OPENCORE/go`. It also saves the VMD node with both drivers, `dmesg` and the kernel log lines that mention VMD.
+
+## 2026-11-04: Thirteenth boot (VMDProbe v0.0.3 + VMDBridge v0.1.1): first look behind the VMD
+- **VMDProbe v0.0.3 mapped the address the hardware decodes (0xB8_8000_0000) and found the VMD domain.** Relative bus numbering with VMCONFIG encoding 3 → bus 224 is confirmed:
+
+  | ECAM slot (bus) | Device | What |
+  |---|---|---|
+  | 0 (224) | 00:01.0 8086:7ECC, class 060400, secondary bus 226 | root port |
+  | 1 (225) | 17.0 8086:7F62, class 010601 | **SATA AHCI (Samsung 860 EVO / HDD)**, ABAR (BAR5) 0x7280_0000, inside MEMBAR1; BAR2–4 legacy I/O, unassigned |
+  | 2 (226) | 00.0 1C5C:1069 (SK hynix), class 010802 | the Windows NVMe, BAR0 0x7200_0000 |
+
+  Slots 128 and 226 return aliases of slots 1 and 2. The AHCI function has capabilities MSI (0x80), PM (0x70) and SATA (0xA8).
+- **VMDBridge v0.1.1** loaded after the probe and cleared both high dwords (`VMDBAR1Before/VMDBAR5Before` = 0xB8, after = 0). It then refused with "no AHCI function on the VMD root bus". It only searched slot 0, and the AHCI function is on slot 1 (bus 225). It is not behind a bridge there, it is just placed on the next bus.
+- No internal disks yet (expected: nothing was exposed).
+- **VMDBridge v0.1.2** (sha256 ac80ac4c…), for the fourteenth boot:
+  - searches ECAM slots 0–31 for the AHCI function and remembers its real slot. IOPCIFamily sees it on the one virtual bus at 17.0, still disguised (level 1), and the NVMe and root port stay hidden.
+  - hides the AHCI's unassigned legacy I/O BARs and ROM (read 0, writes ignored), so IOPCIFamily only places the ABAR.
+  - checks that the cleared address (0x8000_0000) actually answers. If not, it writes the firmware high dwords back and uses the firmware address, which the probe proved works. Which path it took is recorded as `VMDBridgeCfgPath`, and level 2 refuses the fallback path.
+  - records on the VMD node: functions seen, the AHCI slot/device, the ABAR and the final status.
+- `log show` doesn't work in Recovery (no logd), so `vmdlog.txt` is empty; `dmesg.txt` holds the kernel log.
