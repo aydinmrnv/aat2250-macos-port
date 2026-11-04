@@ -22,7 +22,7 @@ Where the port stands, and what each remaining piece is, in the order it gets do
 | 2 | **Install macOS** on D: | — | 1, plus the user's explicit go-ahead to erase D: |
 | 3 | **RTX 5090 acceleration** (native 4K@120, Metal) | `tools/make-postinstall-config.py` derives the config (AMFI, IONDRV block, IOMMU quirk) | 2; review and pin AMFIPass; install the nullmoth driver package; test BAR1 32 GB first |
 | 4 | **USB port map** (the PCH xHCI has 26 ports, macOS allows 15) | waiting for `ioreg-full.txt` | a codeless map kext (no USBToolBox: it stalled the boot) |
-| 5 | **Shut Down / restart** | staged (above) | a boot to confirm |
+| 5 | **Shut Down / restart** | boot 13: the PC appears to have powered off (user report, not certain) | confirm once more |
 | 6 | **Audio** | the dock's USB audio works in Recovery | onboard analog needs AppleHDA, which Tahoe dropped; use the dock or a USB DAC |
 | 7 | **Bluetooth** (Intel 8087:0036) | IntelBluetoothFirmware v2.4.0 predates Tahoe | a Tahoe build from source (needs the user's OK) |
 | 8 | **Wi-Fi** (BE200) | only an alpha driver exists | Ethernet is the daily path |

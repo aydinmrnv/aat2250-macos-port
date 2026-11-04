@@ -332,3 +332,4 @@
   - checks that the cleared address (0x8000_0000) actually answers. If not, it writes the firmware high dwords back and uses the firmware address, which the probe proved works. Which path it took is recorded as `VMDBridgeCfgPath`, and level 2 refuses the fallback path.
   - records on the VMD node: functions seen, the AHCI slot/device, the ABAR and the final status.
 - `log show` doesn't work in Recovery (no logd), so `vmdlog.txt` is empty; `dmesg.txt` holds the kernel log.
+- **Shutdown fix (boot 13):** after Apple menu → Shut Down the PC appears to have powered off instead of restarting (user report, not certain). SSDT-FIXSHUTDOWN looks like it works; check once more.
