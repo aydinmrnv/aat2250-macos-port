@@ -139,7 +139,7 @@ bool VMDHostBridge::publishNub(IOPCIDevice *nub, UInt32 index)
         space.s.deviceNum = nub->getDeviceNumber();
         space.s.functionNum = nub->getFunctionNumber();
         const VMDFunction *f = lookup(space);
-        if (!f || !f->msiOff || !fIC->attachChild(nub, f->dev, f->fn, f->msiOff))
+        if (!f || !f->msiOff || !fIC->attachChild(nub, f->slot, f->dev, f->fn, f->msiOff))
             VMD_LOG("%02x.%u: no VMD interrupt route (MSI cap 0x%02x); driver will get no interrupt",
                     space.s.deviceNum, space.s.functionNum, f ? f->msiOff : 0);
     }

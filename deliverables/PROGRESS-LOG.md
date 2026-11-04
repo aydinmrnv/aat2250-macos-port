@@ -333,3 +333,20 @@
   - records on the VMD node: functions seen, the AHCI slot/device, the ABAR and the final status.
 - `log show` doesn't work in Recovery (no logd), so `vmdlog.txt` is empty; `dmesg.txt` holds the kernel log.
 - **Shutdown fix (boot 13):** after Apple menu → Shut Down the PC appears to have powered off instead of restarting (user report, not certain). SSDT-FIXSHUTDOWN looks like it works; check once more.
+
+## 2026-11-04: Fourteenth boot prepared as the first install attempt (VMDBridge 0.2.0, level 2)
+- The test boot (level 1, class disguised) is skipped at the user's request. The next boot goes straight to level 2 and the macOS install on the Samsung SSD. Guide: `INSTALL.md`.
+- **VMDBridge 0.2.0** (sha256 f2afc5e2…):
+  - the interrupt path now addresses the AHCI function on its real ECAM slot (`childBase` used slot 0);
+  - review finding 6: one child's handler never runs on two CPUs, and an edge that arrives while it runs is re-run;
+  - review finding 7: the child is published under the lock;
+  - review finding 8: the Extended Message Data Enable bit is cleared.
+  - Findings 1–3 (pending replay, quiescing disable/unregister, MSI re-programmed after config restore) were already in the code. Finding 5 is handled by v0.1.2 hiding BAR0–4 and the ROM.
+- **Stick config:**
+  - `boot-args` `-v keepsyms=1 debug=0x100 -lilubetaall vmdbridge=2` (VMDProbe stays loaded but inert);
+  - **ScanPolicy 0x370002**: SATA, SAS, SCSI, ATAPI and USB devices; NVMe and generic PCI excluded, so the Windows NVMe is never offered;
+  - **ShowPicker on, Timeout 10**, so the installer's restarts are visible and boot the default entry by themselves.
+  - ocvalidate: no issues.
+- **Checks before the erase:**
+  - Windows' WinRE is on the NVMe (ReAgent.xml offset ≈1880.8 GB, the 2 TB disk). The Samsung's Recovery/EFI partitions are leftovers.
+  - Every folder still on D: was compared again with its copy on E: (file count and bytes identical).

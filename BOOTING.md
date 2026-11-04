@@ -1,5 +1,7 @@
 # Booting the test USB on the Alienware Area-51 AAT2250
 
+> **Installing macOS now?** Use [INSTALL.md](INSTALL.md). The current stick config (VMDBridge level 2) is the install config.
+
 **What this boot is:** a **diagnostic boot**, not an install.
 - It starts the macOS Tahoe recovery environment from a USB stick.
 - It saves a hardware report to the stick (step 5).

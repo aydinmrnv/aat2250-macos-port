@@ -1139,7 +1139,7 @@
 			<key>PollAppleHotKeys</key>
 			<false/>
 			<key>ShowPicker</key>
-			<false/>
+			<true/>
 			<key>TakeoffDelay</key>
 			<integer>0</integer>
 			<key>Timeout</key>
@@ -1191,7 +1191,7 @@
 			<data>
 			</data>
 			<key>ScanPolicy</key>
-			<integer>2097154</integer>
+			<integer>3604482</integer>
 			<key>SecureBootModel</key>
 			<string>Disabled</string>
 			<key>Vault</key>
@@ -1264,7 +1264,7 @@
 				AAAAAAAAAAAAAAAAAAA=
 				</data>
 				<key>boot-args</key>
-				<string>-v keepsyms=1 debug=0x100 -lilubetaall -vmdprobe -vmdbridge</string>
+				<string>-v keepsyms=1 debug=0x100 -lilubetaall vmdbridge=2</string>
 				<key>csr-active-config</key>
 				<data>
 				QwoAAA==

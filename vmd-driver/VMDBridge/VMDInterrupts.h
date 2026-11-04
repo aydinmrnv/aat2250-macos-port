@@ -30,7 +30,7 @@ public:
     bool initWithDomain(IOPCIDevice *vmd, volatile uint8_t *ecam);
     bool startVectors();
     void stopVectors();
-    bool attachChild(IOPCIDevice *nub, uint8_t dev, uint8_t fn, uint8_t msiCapOffset);
+    bool attachChild(IOPCIDevice *nub, uint8_t slot, uint8_t dev, uint8_t fn, uint8_t msiCapOffset);
     void reprogramChild(IOService *nub);
 
     IOReturn registerInterrupt(IOService *nub, int source, void *target, IOInterruptHandler handler,
@@ -45,7 +45,7 @@ public:
 private:
     struct Child {
         IOService          *nub;
-        uint8_t             dev, fn, msiCap;
+        uint8_t             slot, dev, fn, msiCap;   /* slot = ECAM bus slot (v0.1.2: AHCI is on slot 1) */
         void               *target;
         IOInterruptHandler  handler;
         void               *refCon;

@@ -81,7 +81,7 @@ void VMDInterruptController::stopVectors()
 
 volatile uint8_t *VMDInterruptController::childBase(const Child &c) const
 {
-    return fECAM + ((uint64_t)c.dev << 15) + ((uint64_t)c.fn << 12);   /* children live on the root bus only */
+    return fECAM + ((uint64_t)c.slot << 20) + ((uint64_t)c.dev << 15) + ((uint64_t)c.fn << 12);
 }
 
 /* MSI to VMD entry 1, one message, mask bits cleared, INTx off. */
@@ -101,13 +101,14 @@ void VMDInterruptController::programMSI(const Child &c)
         *(volatile uint16_t *)(base + cap + 8) = 0;
         if (maskable) *(volatile uint32_t *)(base + cap + 12) = 0;
     }
-    ctrl = (uint16_t)((ctrl & ~0x0070u) | 0x0001u);
+    ctrl = (uint16_t)((ctrl & ~0x0470u) | 0x0001u);           /* MME = 1 message, no extended data */
     *(volatile uint16_t *)(base + cap + 2) = ctrl;
     *(volatile uint16_t *)(base + 0x04) = (uint16_t)(*(volatile uint16_t *)(base + 0x04) | 0x0400u);
 }
 
 /* Give the nub our controller and program its MSI capability to target VMD entry 1. */
-bool VMDInterruptController::attachChild(IOPCIDevice *nub, uint8_t dev, uint8_t fn, uint8_t msiCapOffset)
+bool VMDInterruptController::attachChild(IOPCIDevice *nub, uint8_t slot, uint8_t dev, uint8_t fn,
+                                         uint8_t msiCapOffset)
 {
     if (!nub || !msiCapOffset || fCount >= kMaxChildren) return false;
 
@@ -127,9 +128,11 @@ bool VMDInterruptController::attachChild(IOPCIDevice *nub, uint8_t dev, uint8_t 
 
     Child &c = fChild[fCount];
     bzero(&c, sizeof c);
-    c.nub = nub; c.dev = dev; c.fn = fn; c.msiCap = msiCapOffset;
+    c.nub = nub; c.slot = slot; c.dev = dev; c.fn = fn; c.msiCap = msiCapOffset;
     programMSI(c);
+    IOInterruptState is = IOSimpleLockLockDisableInterrupt(fLock);   /* review 7: publish under the lock */
     fCount++;
+    IOSimpleLockUnlockEnableInterrupt(fLock, is);
     VMD_LOG("child %02x.%u: MSI cap 0x%02x -> VMD entry %d, specifier %u", dev, fn, msiCapOffset,
             (int)kChildVMDEntry, spec);
     return true;
@@ -242,14 +245,18 @@ void VMDInterruptController::vmdVectorFired(OSObject *owner, void *, IOService *
     for (unsigned i = 0; i < self->fCount; i++) {
         Child &c = self->fChild[i];
         if (!c.handler) continue;
-        if (!c.enabled) { c.pending = true; continue; }
-        (void)*(volatile uint32_t *)self->childBase(c);  /* ARL004: read to the child orders its posted writes */
-        IOInterruptHandler h = c.handler; void *t = c.target, *r = c.refCon; IOService *n = c.nub;
-        OSIncrementAtomic(&c.active);
-        IOSimpleLockUnlock(self->fLock);
-        h(t, r, n, 0);
-        IOSimpleLockLock(self->fLock);
-        OSDecrementAtomic(&c.active);
+        if (!c.enabled || c.active) { c.pending = true; continue; }   /* review 6: one CPU per child */
+        for (unsigned round = 0; round < 4 && c.handler && c.enabled; round++) {
+            c.pending = false;
+            (void)*(volatile uint32_t *)self->childBase(c);  /* ARL004: read to the child orders its posted writes */
+            IOInterruptHandler h = c.handler; void *t = c.target, *r = c.refCon; IOService *n = c.nub;
+            OSIncrementAtomic(&c.active);
+            IOSimpleLockUnlock(self->fLock);
+            h(t, r, n, 0);
+            IOSimpleLockLock(self->fLock);
+            OSDecrementAtomic(&c.active);
+            if (!c.pending) break;                           /* another vector fired while we ran: run again */
+        }
     }
     IOSimpleLockUnlock(self->fLock);
 }
