@@ -386,10 +386,37 @@ bool VMDController::start(IOService *provider)
     if (!pci || !level) return false;
     if (pci->configRead16(kIOPCIConfigVendorID) != 0x8086 || pci->configRead16(kIOPCIConfigDeviceID) != 0xAD0B)
         return false;
-    if (!abiMatches()) { setProperty("VMDStatus", "IOPCIHostBridge ABI mismatch"); return false; }
+    if (!abiMatches()) { pci->setProperty("VMDBridgeStatus", "IOPCIHostBridge ABI mismatch"); return false; }
 
     const uint16_t cmd = pci->configRead16(kIOPCIConfigCommand);
     if (!(cmd & kIOPCICommandMemorySpace)) { setProperty("VMDStatus", "memory decode off"); return false; }
+
+    /* v0.1.1: make the hardware decode where IOPCIFamily allocated. Boot 12: IOPCIFamily sized the 64-bit CFGBAR
+     * (BAR0/1) and MEMBAR2 (BAR4/5) as 32-bit BARs, wrote only their low dwords and left the firmware's high dwords
+     * (0xB8), so the VMD decoded 0xB8_8000_0000 / 0xB8_6500_0000 while macOS reserved 0x8000_0000 / 0x6500_0000.
+     * Clear a high dword only when IOPCIFamily's own range for that BAR is below 4 GB and equals its low dword, with
+     * memory decode off during the write (standard BAR programming). Nothing else in macOS uses the VMD. */
+    {
+        static const uint8_t lo[2] = { kIOPCIConfigBaseAddress0, kIOPCIConfigBaseAddress4 };
+        static const char *const before[2] = { "VMDBAR1Before", "VMDBAR5Before" };
+        bool fixed = false;
+        for (unsigned i = 0; i < 2; i++) {
+            const uint32_t l = pci->configRead32(lo[i]), h = pci->configRead32(lo[i] + 4);
+            IODeviceMemory *m = pci->getDeviceMemoryWithRegister(lo[i]);
+            pci->setProperty(before[i], h, 32);
+            if ((l & 0x7) != 0x4 || !h || !m) continue;
+            const uint64_t os = m->getPhysicalAddress();
+            if (os >> 32 || os != (l & ~0xFull)) continue;
+            pci->configWrite16(kIOPCIConfigCommand, (uint16_t)(cmd & ~kIOPCICommandMemorySpace));
+            pci->configWrite32(lo[i] + 4, 0);
+            pci->configWrite16(kIOPCIConfigCommand, cmd);
+            fixed = true;
+        }
+        pci->setProperty("VMDBAR1After", pci->configRead32(kIOPCIConfigBaseAddress1), 32);
+        pci->setProperty("VMDBAR5After", pci->configRead32(kIOPCIConfigBaseAddress5), 32);
+        pci->setProperty("VMDBARHighCleared", fixed);
+        VMD_LOG("high dwords %s", fixed ? "cleared to match IOPCIFamily" : "left alone");
+    }
 
     const uint16_t vmcap = pci->configRead16(kVMDRegVMCAP), vmcfg = pci->configRead16(kVMDRegVMCONFIG);
     uint8_t busStart = 0;
@@ -470,6 +497,11 @@ bool VMDController::start(IOService *provider)
 
 fail:
     if (!getProperty("VMDStatus")) setProperty("VMDStatus", "start failed");
+    /* This object is freed after a failed start; copy the reason onto the VMD's own node so ioreg still shows it. */
+    if (pci) {
+        if (OSObject *s = getProperty("VMDStatus")) pci->setProperty("VMDBridgeStatus", s);
+        if (OSObject *n = getProperty("VMDAllowedFunctions")) pci->setProperty("VMDBridgeAllowedFunctions", n);
+    }
     OSSafeReleaseNULL(fBridge);
     if (fIC) { fIC->stopVectors(); OSSafeReleaseNULL(fIC); }
     if (fNub) { fNub->PMstop(); fNub->detach(this); OSSafeReleaseNULL(fNub); }

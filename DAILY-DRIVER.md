@@ -1,6 +1,6 @@
 # Daily-driver roadmap (AAT2250 on macOS Tahoe)
 
-Where the port stands, and what each remaining piece is, in the order it gets done. Updated 2026-11-03.
+Where the port stands, and what each remaining piece is, in the order it gets done. Updated 2026-11-04.
 
 ## Working
 - **Boot:** OpenCore → Tahoe Recovery, with the keyboard and mouse working (ten test boots; see `deliverables/PROGRESS-LOG.md`).
@@ -18,7 +18,7 @@ Where the port stands, and what each remaining piece is, in the order it gets do
 ## Next, in order
 | # | Piece | State | Needs |
 |---|---|---|---|
-| 1 | **Internal disk (D:, Samsung 860 EVO)** | D: emptied (data on E:). VMDProbe v0.0.1 found nothing behind VMD (Arrow Lake VMCONFIG encoding 3; macOS moved the VMD BARs); v0.0.2 scans the whole window | Probe result → VMDBridge level 1/2 tests → install macOS |
+| 1 | **Internal disk (D:, Samsung 860 EVO)** | D: emptied (data on E:). Boot 12: macOS left the VMD's 64-bit BARs half-programmed, so every probe read hit empty space. VMDBridge v0.1.1 fixes the BARs, VMDProbe v0.0.3 reads the real address | Probe result → VMDBridge level 1/2 tests → install macOS |
 | 2 | **Install macOS** on D: | — | 1, plus the user's explicit go-ahead to erase D: |
 | 3 | **RTX 5090 acceleration** (native 4K@120, Metal) | `tools/make-postinstall-config.py` derives the config (AMFI, IONDRV block, IOMMU quirk) | 2; review and pin AMFIPass; install the nullmoth driver package; test BAR1 32 GB first |
 | 4 | **USB port map** (the PCH xHCI has 26 ports, macOS allows 15) | waiting for `ioreg-full.txt` | a codeless map kext (no USBToolBox: it stalled the boot) |

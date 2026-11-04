@@ -138,10 +138,29 @@ bool VMDProbe::start(IOService *provider)
         return true;
     }
 
+    /* v0.0.3: boot 12 showed IOPCIFamily sizing the 64-bit CFGBAR as a 32-bit BAR. It wrote only the low dword
+     * (0x80000004) and left the firmware's high dword (0xB8), so the VMD decodes 0xB8_8000_0000 while IODeviceMemory
+     * says 0x8000_0000, and every read of the latter was all-ones. Map the address the hardware actually decodes,
+     * read back from BAR0/BAR1 now (VMDBridge may already have cleared the high dword, which makes them agree). */
+    const uint32_t bar0 = pci->configRead32(kIOPCIConfigBaseAddress0), bar1 = pci->configRead32(kIOPCIConfigBaseAddress1);
+    setProperty("VMDBAR3Raw", pci->configRead32(kIOPCIConfigBaseAddress3), 32);
+    setProperty("VMDBAR5Raw", pci->configRead32(kIOPCIConfigBaseAddress5), 32);
     IODeviceMemory *cfg = pci->getDeviceMemoryWithRegister(kIOPCIConfigBaseAddress0);
-    IOMemoryMap *map = cfg ? cfg->createMappingInTask(kernel_task, 0,
-                                                      kIOMapAnywhere | kIOMapInhibitCache | kIOMapReadOnly)
-                           : nullptr;
+    if (!cfg) { setProperty("VMDStatus", "no CFGBAR IODeviceMemory"); return true; }
+    const uint64_t osPhys = cfg->getPhysicalAddress(), len = cfg->getLength();
+    const uint64_t hwPhys = ((bar0 & 0x6) == 0x4 ? ((uint64_t)bar1 << 32) : 0) | (bar0 & ~0xFull);
+    setProperty("VMDCfgBarOSPhys", osPhys, 64);
+    setProperty("VMDCfgBarHWPhys", hwPhys, 64);
+    IOMemoryDescriptor *md = nullptr;
+    if (hwPhys == osPhys) {
+        md = cfg; md->retain();
+    } else {
+        md = IOMemoryDescriptor::withPhysicalAddress((IOPhysicalAddress)hwPhys, (IOByteCount)len, kIODirectionIn);
+    }
+    IOMemoryMap *map = md ? md->createMappingInTask(kernel_task, 0,
+                                                    kIOMapAnywhere | kIOMapInhibitCache | kIOMapReadOnly)
+                          : nullptr;
+    OSSafeReleaseNULL(md);
     if (!map) {
         setProperty("VMDStatus", "could not map CFGBAR");
         return true;
@@ -155,8 +174,8 @@ bool VMDProbe::start(IOService *provider)
     setProperty("VMDCfgBarPhys", map->getPhysicalAddress(), 64);
     setProperty("VMDCfgBarSize", size, 64);
     setProperty("VMDBusCount", buses, 16);
-    setProperty("VMDBAR0Raw", pci->configRead32(kIOPCIConfigBaseAddress0), 32);
-    setProperty("VMDBAR1Raw", pci->configRead32(kIOPCIConfigBaseAddress1), 32);
+    setProperty("VMDBAR0Raw", bar0, 32);
+    setProperty("VMDBAR1Raw", bar1, 32);
     setProperty("VMDBAR2Raw", pci->configRead32(kIOPCIConfigBaseAddress2), 32);
     setProperty("VMDBAR4Raw", pci->configRead32(kIOPCIConfigBaseAddress4), 32);
     VMD_LOG("VMCAP %04x VMCONFIG %04x busStart %u CFGBAR %llu MB, scanning %u ECAM buses", vmcap, vmcfg, busStart,

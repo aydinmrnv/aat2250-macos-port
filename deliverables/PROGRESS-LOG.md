@@ -301,3 +301,15 @@
   - VMDProbe v0.0.2 **plus VMDBridge level 1** (`-vmdbridge`, binary sha256 7a78d810…, unchanged). Level 1 disguises the class as 0x018000, so no storage driver attaches and there is no disk I/O. It refuses cleanly if there is no AHCI function, more than one, an ABI mismatch, or a bad ABAR.
   - Both kexts match 8086:AD0B with score 0 in the default category, so only one would have started. VMDProbe now has its own `IOMatchCategory` (VMDProbe) and co-exists with VMDBridge. Rebuilt and on the stick.
   - Save command now also writes `vmdbridge.txt` (`ioreg -r -c VMDController`). ocvalidate: no issues. Stick config e9e21e93….
+
+## 2026-11-04: Twelfth boot (VMDProbe v0.0.2 + VMDBridge level 1): the VMD window was at the wrong address
+- **Results:** Recovery again, 24 CPUs; disks: still only the ramdisk and the stick.
+- **VMDProbe v0.0.2:** 8192 reads, **all all-ones**, 0 functions. VMDBridge loaded (`kmutil`) but left no `VMDController` object, so its `start` failed (most likely "no AHCI function", from the same all-ones reads). The failure reason was lost with the freed object.
+- **Cause, from the raw BAR registers:** BAR0 = 0x80000004 (64-bit memory BAR), **BAR1 = 0xB8**.
+  - IOPCIFamily's `reg` / `assigned-addresses` for the VMD show that it sized the 64-bit CFGBAR (BAR0/1) and MEMBAR2 (BAR4/5) **as 32-bit BARs**, and took BAR1 and BAR5 for I/O BARs it never assigned.
+  - It wrote only the low dwords (CFGBAR 0x8000_0000, MEMBAR2 0x6500_0000) and left the firmware's high dword 0xB8.
+  - So the VMD decoded **0xB8_8000_0000** while macOS mapped and reserved 0x8000_0000, where nothing answers. Every probe read went to empty address space. MEMBAR1 (32-bit, 0x7200_0000) is consistent, so the AHCI ABAR inside it should be intact.
+- **Fixes, for the thirteenth boot:**
+  - **VMDBridge v0.1.1** (sha256 0988ca59…) clears the BAR1/BAR5 high dwords before anything else, so the hardware decodes exactly where IOPCIFamily allocated and reserved. It does this only if the BAR is 64-bit typed, IOPCIFamily's range is below 4 GB and equal to the low dword. Memory decode is off during the write. The register values before and after, and any failure reason, are now written onto the VMD's own registry node (`VMDBridgeStatus`), so they survive a failed start.
+  - **VMDProbe v0.0.3** (sha256 fdcb0568…, still read-only) maps the address the hardware actually decodes, `(BAR1 << 32) | BAR0`, and records it next to IOPCIFamily's address (`VMDCfgBarHWPhys` / `VMDCfgBarOSPhys`).
+  - **One-word save:** the stick now holds a `go` script (`tools/go` in the repo). In Recovery Terminal: `sh /Volumes/OPENCORE/go`. It also saves the VMD node with both drivers, `dmesg` and the kernel log lines that mention VMD.

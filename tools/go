@@ -1,0 +1,17 @@
+#!/bin/sh
+# Saves the test results to the stick. Run in Recovery Terminal:  sh /Volumes/OPENCORE/go
+cd /Volumes/OPENCORE || exit 1
+echo "saving, about 30 seconds..."
+ioreg -l -w0 -r -n VMD0 > vmd.txt
+ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt
+ioreg -l -w0 -r -c VMDController > vmdbridge.txt
+ioreg -l -w0 > ioreg-full.txt
+kmutil showloaded > kexts.txt 2>&1
+diskutil list > disks.txt
+sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt
+ls /Volumes > volumes.txt
+dmesg > dmesg.txt 2>&1
+log show --last boot --predicate 'eventMessage CONTAINS "VMD"' > vmdlog.txt 2>&1
+sync
+ls -la
+echo "DONE - now Apple menu > Shut Down"

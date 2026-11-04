@@ -8,7 +8,9 @@
 **Status (2026-11-04): this config boots macOS Tahoe Recovery on the AAT2250.** It took ten test boots; the progress log
 (`deliverables/PROGRESS-LOG.md`) has each failure and its fix.
 
-**Current test: VMDProbe v0.0.2 + VMDBridge level 1.** All internal disks sit behind Intel VMD, which macOS cannot see
+**Current test: VMDProbe v0.0.3 + VMDBridge v0.1.1 level 1.** Boot 12 found why nothing was seen behind VMD: macOS
+programmed only the low half of the VMD's 64-bit address registers, so the VMD answered at a different address than
+the one macOS read. VMDBridge now corrects that first. All internal disks sit behind Intel VMD, which macOS cannot see
 by itself.
 - **VMDProbe** (read-only) scans the whole VMD config window and counts what the reads return.
 - **VMDBridge level 1** (`-vmdbridge`) tries to expose the SATA controller behind VMD as a second PCI root, with its
@@ -92,13 +94,17 @@ tools/get-recovery.sh ~/aat2250-recovery
    ```bash
    cp -R ~/aat2250-recovery/com.apple.recovery.boot /Volumes/OPENCORE/
    ```
+
+   ```bash
+   cp tools/go /Volumes/OPENCORE/go
+   ```
 5. Eject:
 
    ```bash
    diskutil eject OPENCORE
    ```
 
-The stick should now hold `EFI/` and `com.apple.recovery.boot/` at its top level.
+The stick should now hold `EFI/`, `com.apple.recovery.boot/` and `go` at its top level.
 
 ## Step 4: boot it (on the Alienware)
 1. Shut down. Leave the **WD19TB dock connected** the way it normally is: its state is part of the test.
@@ -120,20 +126,15 @@ The stick should now hold `EFI/` and `com.apple.recovery.boot/` at its top level
 
 ## Step 5: collect results (in macOS Recovery)
 1. If a language screen appears, pick one. Then choose **Utilities → Terminal** from the menu bar.
-2. Type this one line. The stick is mounted at `/Volumes/OPENCORE`. It saves the VMDProbe result, the full device tree,
-   the loaded drivers, the disks macOS can see, the CPU info and the mounted volumes. `sync` forces everything onto
-   the stick, then `ls -la` lists the files so you can check they are there:
+2. Type this and press Return (the script is on the stick; it takes about 30 seconds):
 
    ```bash
-   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 -r -c VMDController > vmdbridge.txt; ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
+   sh /Volumes/OPENCORE/go
    ```
 
-   You should see `vmdprobe.txt`, `vmdbridge.txt`, `ioreg-full.txt`, `kexts.txt`, `disks.txt`, `sysctl.txt` and `volumes.txt`, each with
-   a size above 0 (`ioreg-full.txt` is several MB). When USB4Probe is switched on in a later test, also run:
-
-   ```bash
-   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c USB4Probe > usb4probe.txt; sync
-   ```
+   It saves the VMD drivers' results, the full device tree, the loaded drivers, the disks macOS can see, the CPU
+   info, the kernel log, then runs `sync` and lists the files. Wait for **DONE**.
+   The `.txt` files should each be above 0 bytes (`ioreg-full.txt` is several MB).
 3. **Shut down from the Apple menu → Shut Down.** Do not use the power button: the stick is FAT32, and writes that
    were not flushed are lost when the power is cut (this lost the first run's files). **Do not open "Install macOS" or
    Disk Utility.**
