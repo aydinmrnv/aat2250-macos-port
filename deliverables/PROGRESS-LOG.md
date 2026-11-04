@@ -262,16 +262,16 @@
 
 ## 2026-11-04: Emptying D: for the macOS install
 - Boot disk confirmed from the Windows partition flags: disk 0 (NVMe) partition 1 is the System ESP, and C: is the boot volume. The Samsung 860 EVO (disk 2: Recovery, ESP, MSR, D:, Recovery) is used by neither. To be re-confirmed right before any erase.
-- Inventory of D: (464 GB, 149 GB free): the four plain folders, an empty `Docker` folder, the Store/Xbox install (Forza Horizon 5, 148.9 GB, plus WindowsApps/WpSystem/Program Files/.GamingRoot), SteamLibrary (12.6 GB), `WSL\NVIDIA-Workbench` (9.5 GB) and `pagefile.sys` (43 GB).
+- Inventory of D: (464 GB, 149 GB free): the four plain folders, an empty `Docker` folder, the Store/Xbox install (a Store game, 148.9 GB, plus WindowsApps/WpSystem/Program Files/.GamingRoot), SteamLibrary (12.6 GB), `WSL\NVIDIA-Workbench` (9.5 GB) and `pagefile.sys` (43 GB).
 - Done by Claude:
-  - Robocopy re-sync of the four plain folders to `E:\D-migration`: 0 changed, 0 failed (about 101 GB, identical). Logs in `evidence/d-to-e-copy/resync-*.log`.
+  - Robocopy re-sync of the four plain folders to `the E: copy folder`: 0 changed, 0 failed (about 101 GB, identical). Logs in `evidence/d-to-e-copy/resync-*.log`.
   - `wsl --manage NVIDIA-Workbench --move E:\WSL2-Distros\NVIDIA-Workbench`: exit 0, the distro starts, nothing left on D:.
-- Left for the user (app-managed or admin): Forza via Settings → Apps → Move; Steam via Storage → Move; pagefile from D: to C: in `sysdm.cpl`, then reboot.
-- After macOS takes the disk: map drive letter D: to `E:\D-migration` in Windows so old `D:\…` paths keep working.
+- Left for the user (app-managed or admin): the Store game via Settings → Apps → Move; Steam via Storage → Move; pagefile from D: to C: in `sysdm.cpl`, then reboot.
+- After macOS takes the disk: map drive letter D: to `the E: copy folder` in Windows so old `D:\…` paths keep working.
 - **D: emptied (2026-11-03 21:15):**
-  - Forza Horizon 5 moved to `E:\Store game folder` with Windows' own Move: 148.9 GB on E:, 0 left on D:.
+  - a Store game moved to `E:` with Windows' own Move: 148.9 GB on E:, 0 left on D:.
   - Steam library copied to `E:\SteamLibrary`: 13,059 files and 13,481,045,658 bytes, identical. Steam was signed out, so `libraryfolders.vdf` was repointed from `D:\SteamLibrary` to `E:\SteamLibrary`, with a backup `libraryfolders.vdf.bak-20261103`.
   - The user set the pagefile to C: only (system managed); it takes effect after a restart.
   - Left on D: only data with verified copies on E: (the four plain folders and the old SteamLibrary copy) plus the pagefile until the restart.
-- After the restart (21:27): pagefile only on C:, `D:\pagefile.sys` gone, Forza on E:, Steam pointing at E:, WSL fine.
+- After the restart (21:27): pagefile only on C:, `D:\pagefile.sys` gone, the Store game on E:, Steam pointing at E:, WSL fine.
 - Next boot: VMDProbe re-enabled (read-only, `-vmdprobe`, sha256 bd6b4c42… unchanged), USB4Probe still off, so a hang can be pinned to VMDProbe alone. ocvalidate: no issues. Stick config 6134fa28….
