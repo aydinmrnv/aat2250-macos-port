@@ -360,3 +360,8 @@
   - **Samsung SSD 860 EVO 500GB (disk2)**, 500107862016 bytes: GPT with Recovery, EFI, MSR, basic data, Recovery.
   - 11 reads per disk (the partition tables), 0 errors, 0 retries, 0 writes, total read time 13.6 ms and 1.7 ms. **VMD interrupts and DMA work.**
 - **But DiskArbitration never published them.** `diskutil list` and Disk Utility showed only the ramdisk and the stick (disk0, disk3), and no further reads were issued, so DA never probed them. Cause not yet known; the IOMedia objects are registered, matched and not busy. AppleAHCIPort reports "Physical Interconnect Location" External.
+
+## 2026-11-04: VMD switched off; install config without VMD drivers
+- **The user switched SATA/NVMe Operation to AHCI/NVMe in the BIOS**, using the Safe Mode route: `bcdedit /set "{current}" safeboot minimal`, the BIOS change, then `bcdedit /deletevalue "{current}" safeboot`. In PowerShell `{current}` must be quoted.
+- **Windows boots normally:** "Standard SATA AHCI Controller" 8086:7F62 and "Standard NVM Express Controller" for the SK hynix.
+- **Config:** VMDProbe and VMDBridge are disabled and `vmdbridge`/`-vmdprobe` are gone from boot-args; recovery and install modes are otherwise unchanged (ocvalidate clean). The VMD work stays in the repo for anyone who has to keep VMD on.

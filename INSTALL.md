@@ -1,11 +1,11 @@
 # Installing macOS Tahoe on the Samsung SSD (AAT2250)
 
-This is the first install attempt. In one boot, it:
-- makes the SATA disks visible to macOS through VMDBridge level 2 (`vmdbridge=2`);
-- installs macOS on the **Samsung SSD 860 EVO 500GB** (Windows calls it D:).
+**Intel VMD is switched off in the BIOS** (SATA/NVMe Operation = AHCI/NVMe, 2026-11-04). macOS sees the SATA disks with Apple's own AHCI driver, so the VMD drivers are disabled in the config. To switch it the safe way, Windows was booted once in Safe Mode after the change (`bcdedit /set "{current}" safeboot minimal`, then `bcdedit /deletevalue "{current}" safeboot`). In PowerShell, keep the quotes around `{current}`.
+
+This installs macOS on the **Samsung SSD 860 EVO 500GB** (Windows' D:).
 
 **What stays untouched:**
-- **The Windows NVMe stays hidden.** VMDBridge never shows it to macOS, and OpenCore's `ScanPolicy` (0x370002) skips NVMe devices.
+- **macOS will also see the Windows NVMe (SK hynix 2 TB).** Don't touch it. OpenCore's ScanPolicy never offers it as a boot entry.
 - **Windows' own recovery (WinRE) is on the NVMe.** The Samsung's old Recovery and EFI partitions are leftovers that Windows doesn't use.
 
 > ## ⚠️ Two SATA disks will appear. Erase only the Samsung.
@@ -13,6 +13,7 @@ This is the first install attempt. In one boot, it:
 > |---|---|---|
 > | **Samsung SSD 860 EVO 500GB** | ~500 GB | **erase this one** |
 > | **WDC WD60EFZX** | ~6 TB | **never touch.** It holds the data moved off D:. |
+> | **SK hynix 2048GB** (NVMe) | ~2 TB | **never touch.** It's Windows. |
 > If you are unsure which is which, stop and check the size again.
 
 ## Before you start (in Windows)
@@ -28,7 +29,7 @@ This is the first install attempt. In one boot, it:
 
 ## Step 2: check that the disks appeared
 1. Open **Disk Utility**, then **View → Show All Devices**.
-2. You should see **Samsung SSD 860 EVO 500GB (~500 GB)**, **WDC WD60EFZX (~6 TB)** and the USB stick.
+2. You should see **Samsung SSD 860 EVO 500GB (~500 GB)**, **WDC WD60EFZX (~6 TB)**, the **SK hynix NVMe (~2 TB, Windows)** and the USB stick.
    - **If the Samsung is missing:** close Disk Utility and open Utilities → Terminal. Run `sh /Volumes/OPENCORE/go`, then Apple menu → Shut Down. Stop there; the results tell us what's wrong.
 
 ## Step 3: erase the Samsung (only the Samsung)
