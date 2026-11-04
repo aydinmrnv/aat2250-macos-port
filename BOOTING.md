@@ -2,10 +2,12 @@
 
 **What this boot is:** a **diagnostic boot**, not an install.
 - It starts the macOS Tahoe recovery environment from a USB stick.
-- It runs three read-only probe drivers (VMDProbe, USB4Probe, plus the inert VMDBridge) and saves their results to the stick.
+- It saves a hardware report to the stick (step 5).
 - **Nothing is written to any internal disk.** Windows stays the default boot.
 
-Nothing in this repo has been boot-tested yet. The boot may stop partway, and that is still a useful result (see step 5).
+**Status (2026-11-04): this config boots macOS Tahoe Recovery on the AAT2250.** It took ten test boots; the progress log
+(`deliverables/PROGRESS-LOG.md`) has each failure and its fix. The read-only probe drivers (VMDProbe, USB4Probe) are
+switched off in the current config while the boot path is settled; VMDBridge is off too.
 
 You need:
 - a Mac (any recent macOS, Intel or Apple Silicon) to build the stick;
@@ -93,46 +95,55 @@ The stick should now hold `EFI/` and `com.apple.recovery.boot/` at its top level
 1. Shut down. Leave the **WD19TB dock connected** the way it normally is: its state is part of the test.
 2. Plug the stick into a **rear motherboard USB-A port**, not the dock and not a front port.
 3. Power on and tap **F12**. Choose the USB stick, listed as **UEFI: <stick name>**.
-4. The OpenCore picker appears. Choose **macOS Base System** (the recovery `.dmg` entry). Do not pick Windows here.
-5. Verbose text scrolls. This takes a few minutes.
-   - **If it stops or reboots,** photograph the last screen. That photo is the test result. Go to step 6.
-6. While it boots, note **which monitors show anything at all**: the S3225QS on the 5090, and the two LGs on the iGPU.
+4. **Touch nothing.** There is no picker (`ShowPicker false`): OpenCore starts the recovery image by itself. On a USB 2.0
+   stick, loading and verifying the 1 GB image takes **1–3 minutes with no visible progress**.
+5. Verbose text scrolls, then the Recovery screen (language, then Utilities) appears.
+   - **If the text stops for 5 minutes,** photograph the bottom of the screen. That photo is the test result. Go to step 6.
+6. Note **which monitors show anything at all**: the S3225QS on the 5090, and the two LGs on the iGPU.
+
+**What the display looks like in Recovery (expected for now):**
+- **Laggy.** There is no driver yet for the RTX 5090 or the Intel iGPU, so macOS draws everything with the CPU onto
+  the plain firmware framebuffer, with no acceleration.
+- **Not 4K, soft.** OpenCore asks the RTX 5090's UEFI firmware (GOP) for its highest mode (`Resolution Max`). NVIDIA's
+  firmware usually offers less than the monitor's native 4K, macOS shows that mode unscaled, and the monitor stretches it.
+  Forcing 3840x2160 (`ForceResolution`) is known to give a black screen on NVIDIA firmware, so it is not set.
+  The real fix for both is the RTX 5090 driver (native resolution, 120 Hz, acceleration): a later phase.
 
 ## Step 5: collect results (in macOS Recovery)
 1. If a language screen appears, pick one. Then choose **Utilities → Terminal** from the menu bar.
-2. Run these four commands. The stick is mounted at `/Volumes/OPENCORE`:
+2. Type this one line. The stick is mounted at `/Volumes/OPENCORE`. It saves the full device tree, the loaded drivers,
+   the disks macOS can see, the CPU info and the mounted volumes; `sync` forces everything onto the stick; `ls -la`
+   then lists the files so you can see they are there:
 
    ```bash
-   ioreg -l -w0 -r -c VMDProbe > /Volumes/OPENCORE/vmdprobe.txt
+   cd /Volumes/OPENCORE && ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
    ```
 
-   ```bash
-   ioreg -l -w0 -r -c USB4Probe > /Volumes/OPENCORE/usb4probe.txt
-   ```
+   When the probe drivers are switched back on (`-vmdprobe` / `-usb4probe` in boot-args and their `Kernel > Add`
+   entries enabled), also run:
 
    ```bash
-   sysctl hw.logicalcpu hw.model >> /Volumes/OPENCORE/vmdprobe.txt
+   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 -r -c USB4Probe > usb4probe.txt; sync
    ```
-
-   ```bash
-   ioreg -l -w0 > /Volumes/OPENCORE/ioreg-full.txt
-   ```
-3. Shut down from the Apple menu. **Do not open "Install macOS" or Disk Utility.**
+3. **Shut down from the Apple menu → Shut Down.** Do not use the power button: the stick is FAT32, and writes that
+   were not flushed are lost when the power is cut (this lost the first run's files). **Do not open "Install macOS" or
+   Disk Utility.**
 
 ## Step 6: back to Windows
 1. Remove the stick and power on. Windows should boot normally.
 2. If you suspended BitLocker, it resumes by itself after the reboot count runs out. If you want Secure Boot back on, turn it on in F2 BIOS setup.
-3. Plug the stick into Windows. The three `.txt` files are the results.
+3. Plug the stick into Windows. The `.txt` files are the results.
    - `ioreg-full.txt` contains your generated serials and device details, so **do not post it publicly**.
 
 ## Pass / fail
 | Check | Pass | If not |
 |---|---|---|
-| OpenCore picker appears | yes | Secure Boot is still on, or the stick was not booted in UEFI mode |
-| Recovery reaches its menu | yes | The photo shows where it stopped: CPU spoof, ACPI, MADT x2APIC or display |
-| `hw.logicalcpu` | 24 | CPU topology problem |
-| `VMDStatus` in vmdprobe.txt | `scanned` | Decides the internal-disk plan |
-| `USB4ProbeStatus` / `NHIStatus` | `done` / `read` | `NHIFirmwareCM` decides how the dock driver is built |
+| OpenCore starts (log file appears on the stick) | yes | Secure Boot is still on, or the stick was not booted in UEFI mode |
+| Recovery reaches its menu | yes (since 2026-11-04) | The photo shows where it stopped; compare with the progress log |
+| Keyboard and mouse work in Recovery | yes (since 2026-11-04) | Use a rear USB-A port |
+| `hw.logicalcpu` in sysctl.txt | 24 | CPU topology problem |
+| `VMDStatus` in vmdprobe.txt (probes on) | `scanned` | Decides the internal-disk plan |
+| `USB4ProbeStatus` / `NHIStatus` (probes on) | `done` / `read` | `NHIFirmwareCM` decides how the dock driver is built |
 | Windows afterwards | boots unchanged | Remove the stick. Nothing internal was written. |
 
 ## Rollback
