@@ -247,3 +247,15 @@
     - Fix: drop `DellRtd3` (OEM ID DellRtd3, length 56991) for macOS only. Checked that nothing outside it depends on its objects.
   - Still open: one `[_SB_.PC02] AE_NOT_FOUND` during deferred module-level code (`\_GPE` return-value warnings follow). It may come from DellRtd3's deferred blocks; to be seen on the next boot.
   - All 8 DSDT patches apply in sequence with unique matches; DSDT size unchanged. ocvalidate: no issues. Stick config cf8b9116….
+
+## 2026-11-03/04: **macOS Tahoe Recovery boots on the AAT2250**
+- Tenth attempt (OpenCore log 20:19): the boot reached the macOS Tahoe Recovery UI. The user typed commands in Terminal, so the USB keyboard works with Apple's USB drivers.
+- Config that booted (stick config cf8b9116…):
+  - **ACPI:**
+    - MADT replaced (x2APIC → Local APIC).
+    - 7 DSDT patches for Intel Arrow Lake reference code (PCHA module-level If → Scope; SBRG/PU2C/PU3C/DUWS/PGPI Name+Store → Methods).
+    - ECDV `_STA→XSTA` by unique byte match, so SsdtEC (fake EC + USBX) now loads.
+    - DellRtd3 and DMAR dropped.
+  - **Kexts:** MCEReporterDisabler, Lilu, CpuTscSync, VirtualSMC, SMCProcessor, RestrictEvents, CpuTopologyRebuild, LucyRTL8125Ethernet. No USBToolBox, no project probes.
+  - **Quirks:** ProvideCurrentCpuInfo, ProtectUefiServices, AppleXcpmCfgLock, ProcessorType 0x0F01, Comet Lake CPUID spoof.
+- Result files: not on the stick. macOS mounted it (`.fseventsd` written), but `vmdprobe.txt`, `usb4probe.txt` and `ioreg-full.txt` are absent. Most likely the machine was powered off without Shut Down, so FAT writes were lost. The probes were disabled on this boot in any case.

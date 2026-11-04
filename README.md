@@ -2,7 +2,7 @@
 
 This is an evidence-driven attempt to run **macOS Tahoe** on an **Alienware Area-51 AAT2250**: Core Ultra 9 285K (Arrow Lake), RTX 5090, Intel VMD storage, and a WD19TB Thunderbolt dock.
 
-> **Status: nothing here has been boot-tested.**
+> **Status (2026-11-04): macOS Tahoe Recovery boots on the AAT2250** with the config in `efi/config.plist`. Installing macOS, internal storage (VMD), the RTX 5090, the iGPU and the dock are not done yet.
 > - The first diagnostic boot is ready: see **[BOOTING.md](BOOTING.md)**.
 > - A successful boot will not mean the machine is usable. Every component has its own acceptance tests in `deliverables/`.
 
