@@ -6,8 +6,12 @@
 - **Nothing is written to any internal disk.** Windows stays the default boot.
 
 **Status (2026-11-04): this config boots macOS Tahoe Recovery on the AAT2250.** It took ten test boots; the progress log
-(`deliverables/PROGRESS-LOG.md`) has each failure and its fix. The read-only probe drivers (VMDProbe, USB4Probe) are
-switched off in the current config while the boot path is settled; VMDBridge is off too.
+(`deliverables/PROGRESS-LOG.md`) has each failure and its fix.
+
+**Current test: VMDProbe.** All internal disks sit behind Intel VMD, which macOS cannot see by itself. The read-only
+VMDProbe driver is switched on (`-vmdprobe`) to list what is behind VMD, including the SATA SSD meant for macOS (D:).
+USB4Probe and VMDBridge stay off. If this boot freezes before Recovery, VMDProbe is the only change, so take a photo.
+Also new in this config: `SSDT-FIXSHUTDOWN-AAT2250`, so Shut Down should power off instead of restarting.
 
 You need:
 - a Mac (any recent macOS, Intel or Apple Silicon) to build the stick;
@@ -111,23 +115,24 @@ The stick should now hold `EFI/` and `com.apple.recovery.boot/` at its top level
 
 ## Step 5: collect results (in macOS Recovery)
 1. If a language screen appears, pick one. Then choose **Utilities → Terminal** from the menu bar.
-2. Type this one line. The stick is mounted at `/Volumes/OPENCORE`. It saves the full device tree, the loaded drivers,
-   the disks macOS can see, the CPU info and the mounted volumes; `sync` forces everything onto the stick; `ls -la`
-   then lists the files so you can see they are there:
+2. Type this one line. The stick is mounted at `/Volumes/OPENCORE`. It saves the VMDProbe result, the full device tree,
+   the loaded drivers, the disks macOS can see, the CPU info and the mounted volumes. `sync` forces everything onto
+   the stick, then `ls -la` lists the files so you can check they are there:
 
    ```bash
-   cd /Volumes/OPENCORE && ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
+   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 > ioreg-full.txt; kmutil showloaded > kexts.txt 2>&1; diskutil list > disks.txt; sysctl hw.logicalcpu hw.model machdep.cpu.brand_string > sysctl.txt; ls /Volumes > volumes.txt; sync; ls -la
    ```
 
-   When the probe drivers are switched back on (`-vmdprobe` / `-usb4probe` in boot-args and their `Kernel > Add`
-   entries enabled), also run:
+   You should see `vmdprobe.txt`, `ioreg-full.txt`, `kexts.txt`, `disks.txt`, `sysctl.txt` and `volumes.txt`, each with
+   a size above 0 (`ioreg-full.txt` is several MB). When USB4Probe is switched on in a later test, also run:
 
    ```bash
-   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c VMDProbe > vmdprobe.txt; ioreg -l -w0 -r -c USB4Probe > usb4probe.txt; sync
+   cd /Volumes/OPENCORE && ioreg -l -w0 -r -c USB4Probe > usb4probe.txt; sync
    ```
 3. **Shut down from the Apple menu → Shut Down.** Do not use the power button: the stick is FAT32, and writes that
    were not flushed are lost when the power is cut (this lost the first run's files). **Do not open "Install macOS" or
    Disk Utility.**
+   - With the shutdown fix, the PC should power off. If it restarts instead, note that; it tests `SSDT-FIXSHUTDOWN`.
 
 ## Step 6: back to Windows
 1. Remove the stick and power on. Windows should boot normally.
