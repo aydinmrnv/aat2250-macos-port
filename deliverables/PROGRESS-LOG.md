@@ -406,3 +406,16 @@
   - The backup EFI and the failing stick differ **only** in `IntelBTPatcher.kext`.
 - **Fix:** the stick now equals that backup (IntelBTPatcher 2.5.0, IGPUScanout, IGPUProbe, Bluetooth, NVIDIA). 2.5.3 is kept in `Kexts-backup/IntelBTPatcher-2.5.3.kext`; the config is also saved as `config-working-igpu-bt.plist`.
 - **Open:** the 17:35 SATA root-disk drop (AppleAHCIPort, Samsung 860 EVO on the Arrow Lake PCH 7F62).
+
+## 2026-11-05: Why macOS stopped booting again (read from the Mac's own unified log)
+- Tools: Mandiant unifiedlog_iterator 0.7.0 (release sha256 7192a187…, user-approved) in the throwaway `apfsreader` WSL distro, on the read-only apfs-fuse mount of the Samsung data volume.
+- **Failed boot (log 09C29228, about 08:41Z):** the disk is fine (AHCI ports 4/7 up, APFS mounted). NVRM brought the 5090 up (PASS 2, GSP-RM running, 32 GB VRAM, BAR1 resized to 8 GB at 0x3FC00000000) and published 4 NVRMDisplay nubs at 47.0 s. Then **no "boot guard cleared" and no "boot hold RELEASED"**, and the log stops at 47.8 s: the machine froze while NVRMFB took over head 0. The boot guard logged "start 2 without a display so far", so the next start would turn the driver off.
+- **Good boots (E05317CF, F2C999EE, F8C6361D):** the same sequence, plus "boot guard cleared: the framebuffer has its scanout memory and a display mode" and "boot hold RELEASED". The one difference seen: `headwatch: head 1 RUNNING` is followed by `head 1 STOPPED` within 25 ms in good boots, but not in the failed one.
+- The on-screen symptom (repeated `AppleKeyStoreUserClient failed MACF`) matches the NullMoth TROUBLESHOOTING entry "Loops at AppleKeyStore after installing the driver… card firmware needed more time before the driver turned the display on", whose fix is `nvrmsettle=10000` (the default settle is 0.5 s for non-Turing cards).
+- **Staged fix** (the Lexar was unplugged; staged in `private/lexar-staging`): `nvrmsettle=10000` plus `nullmoth-nv-starts` in NVRAM → Delete (7C436110), so the guard's count of 2 does not switch the driver off on the test boot. ocvalidate clean.
+- **Bluetooth works** with IntelBTPatcher 2.5.0: 8087:0036 on HS14, BlSt PoweredOn, firmware v17222, LMP 13 (5.4), GATT connections. In one session it went PoweredOff after 3 minutes.
+- **USB:** macOS uses the first 15 xHCI ports (HS01–HS14 + SS01). `kexts/USBMapAAT2250.kext` (codeless, from the Dell `_UPC`/`_PLD`) keeps all HS ports except HS13 and adds SS09/SS10. Staged as a separate step (`usbmap`).
+- **Wi-Fi BE200:** only AirportItlwm-Tahoe 1.2.0 BE200 Alpha 2 (GPL-2.0), which needs OCLP-CustoMac root patching of the sealed system volume. Not done without the user.
+- **Login screen in a quarter of the panel:** NVRMFB keeps the firmware's 2560x1440 boot raster until WindowServer applies the user's 1920x1080@2x mode at login. No driver switch exists; firmware 4K output is a later experiment.
+- **Icons:** NullMoth issue #89 (Icon Composer icons on macOS 26). **Minecraft:** OpenGL is translated (issues #261/#306).
+- **Clock:** in-boot timestamps jump by 8 h, so the RTC holds local time (Windows default) while macOS reads it as UTC.
