@@ -13,7 +13,7 @@ This installs macOS on the **Samsung SSD 860 EVO 500GB** (Windows' D:).
 >
 > **The Lexar stick is now in macOS mode:**
 > - OpenCore lists only APFS/HFS volumes. Windows boot files (FAT/ESP) and the NVMe never appear, and Recovery entries are hidden.
-> - The menu shows for 5 seconds, then starts **macOS Installer** (later **Macintosh HD**) by itself.
+> - There is no menu: the OpenCore picker ignored the keyboard and did not time out (2026-11-05), so it is off (`ShowPicker` false, `KeySupport` false). OpenCore starts **macOS Installer** (later **Macintosh HD**) by itself.
 >
 > Use **only the Lexar**. Unplug the old 4 GB stick: both are named OPENCORE, and the scripts expect one. Then power on and let it run. **Stay near it until you reach the desktop.** Sleep doesn't work yet, so don't let it sit idle at the setup assistant. When you reach the desktop, run `sudo sh /Volumes/OPENCORE/go`: it saves results **and turns sleep off for good**.
 >

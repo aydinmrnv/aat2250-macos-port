@@ -87,7 +87,7 @@ plutil -replace PlatformInfo.Generic.ROM -data "$(head -c 6 /dev/urandom | base6
 # Two modes (tools/installmode, tools/recoverymode swap them on the stick):
 #  recovery: USB devices only, no picker; boots the Recovery image on the stick, never another OS.
 #  install:  APFS/HFS volumes only (no FAT, ESP or NTFS, so no Windows entries) on SATA/SAS/SCSI/ATAPI/USB
-#            (never NVMe), picker shown for 5 s, auxiliary entries hidden; boots macOS from the Samsung.
+#            (never NVMe), no picker (the picker keyboard does not work on the AAT2250), auxiliary entries hidden; boots macOS from the Samsung.
 plutil -replace Misc.Security.ScanPolicy -integer 2097154 "$CFG"
 plutil -replace Misc.Boot.ShowPicker -bool NO "$CFG"
 cp "$CFG" "$OUT/EFI/OC/config-recovery.plist"
@@ -95,7 +95,7 @@ cp "$CFG" "$OUT/EFI/OC/config-install.plist"
 plutil -replace Misc.Security.ScanPolicy -integer 3605251 "$OUT/EFI/OC/config-install.plist"
 plutil -replace Misc.Boot.HideAuxiliary -bool YES "$OUT/EFI/OC/config-install.plist"
 plutil -replace Misc.Boot.Timeout -integer 5 "$OUT/EFI/OC/config-install.plist"
-plutil -replace Misc.Boot.ShowPicker -bool YES "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Boot.ShowPicker -bool NO "$OUT/EFI/OC/config-install.plist"
 cp "$REPO/tools/go" "$REPO/tools/installmode" "$REPO/tools/recoverymode" "$OUT/"
 
 OCV=$WORK/x/OpenCore/Utilities/ocvalidate/ocvalidate

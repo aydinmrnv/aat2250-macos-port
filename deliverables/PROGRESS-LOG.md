@@ -374,3 +374,4 @@
   - ScanPolicy 0x370303: FS lock with APFS+HFS only; SATA, SAS, SCSI, ATAPI and USB; no NVMe. The Samsung's leftover Windows ESP can no longer create a Windows entry.
   - HideAuxiliary on; picker 5 s.
 - The old stick keeps recovery mode as a fallback. `tools/go` now also turns sleep off (`pmset -a sleep 0 standby 0 hibernatemode 0 powernap 0 disksleep 0`) and saves `sw_vers`, `pmset` and a system_profiler summary.
+- **Picker stuck (2026-11-05):** the macOS-mode picker on the Lexar showed, ignored the keyboard and never timed out. Its log was empty again (power cut before the flush). Now **ShowPicker false** (OpenCore boots the default entry, the macOS Installer, with no input) and **KeySupport false** (use the firmware's keyboard input instead of OpenCore's own driver) in both modes.
