@@ -475,8 +475,11 @@ static int run_kernel(tinynv_device_t d, tinynv_kernel_t k, const uint32_t grid[
   if (cbuf0_bytes < mind * 4) cbuf0_bytes = mind * 4;
   cbuf0_bytes = (cbuf0_bytes + 0xff) & ~0xffu;
   const uint64_t slot = TINYNV_QMD_SLOT_BYTES;
+  // The descriptor, its constant buffer and the batch that launches it are ONE piece of the ring. Taken separately, a
+  // wrap between the two takes would let later work reach the descriptor's bytes before the GPU had read them.
+  const uint32_t batch_dwords = 32;
   uint64_t qmd_va;
-  uint8_t *host = ring_take(d, slot + cbuf0_bytes, 256, &qmd_va);
+  uint8_t *host = ring_take(d, slot + cbuf0_bytes + (uint64_t)batch_dwords * 4, 256, &qmd_va);
   if (!host) return -1;
   tinynv_qmd_t q;
   if (build_qmd(d, k->mod, &k->layout, kd, grid, block, dyn_smem, cbuf0_bytes, qmd_va + slot, &q)) return -1;
@@ -485,9 +488,14 @@ static int run_kernel(tinynv_device_t d, tinynv_kernel_t k, const uint32_t grid[
   memset(host + slot, 0, cbuf0_bytes);
   tinynv_qmd_cbuf0((uint32_t *)(host + slot), cbuf0_bytes / 4, q.v3, SHARED_WINDOW, LOCAL_WINDOW, grid, block);
   if (params_len) memcpy(host + slot + kd->param_base, params, params_len);
-  __atomic_thread_fence(__ATOMIC_SEQ_CST);
   batch_t b;
-  if (batch_begin(d, &b, 16) || tinynv_cmd_memory_barrier(&b.c) || tinynv_cmd_launch(&b.c, qmd_va)) return -1;
+  b.c.words = (uint32_t *)(host + slot + cbuf0_bytes);   // 256-aligned: slot and cbuf0_bytes both are
+  b.c.n = 0;
+  b.c.cap = batch_dwords;
+  b.va = qmd_va + slot + cbuf0_bytes;
+  b.reserved = (uint64_t)batch_dwords * 4;
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
+  if (tinynv_cmd_memory_barrier(&b.c) || tinynv_cmd_launch(&b.c, qmd_va)) return -1;
   d->launches++;
   return batch_submit(d, &b);
 }

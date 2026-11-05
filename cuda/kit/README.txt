@@ -19,6 +19,6 @@ except the results file.
 Then boot Windows and tell Claude "CUDA results are on the stick".
 
 Files:
-  nvrmcu-selftest   sha256 820349900a2cfa77c980c7e65e21de3a80bda8266e62b70a941688a8eb7fac14
-  cuda-selftest     sha256 cac15d97ea1d2dcf730db40e68f76839b3b74a5b93358237fa74ed1bb40a3206
+  nvrmcu-selftest   sha256 6be26460f75350fc112f71f188b8c1c05a1f97eb347853fbec69f1b8ded3089c
+  cuda-selftest     sha256 f225056afe14f540505284a26484ef543c216eaeea1ead013aba49b3cd6867c0
   Source: github.com/aydinmrnv/aat2250-macos-port, folder cuda/.
