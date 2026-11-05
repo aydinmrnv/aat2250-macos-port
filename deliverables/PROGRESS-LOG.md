@@ -389,3 +389,8 @@
 - `config-nvidia.plist` comes from macOS mode via `tools/make-postinstall-config.py`, whose IONDRVSupport block now uses Strategy **Exclude** as the driver README asks. ocvalidate is clean.
 - On the Lexar: `nvidia/` (tarball + sig), `EFI/OC/Kexts/AMFIPass.kext`, `config-nvidia.plist`, `config-basic.plist`, and the scripts `gpu`/`gpuoff`. `gpu` switches the config only after `install.sh` succeeds. Guide: `GPU.md`.
 - The old 4 GB stick still has to be turned into the basic-display fallback (it was not plugged in).
+
+## 2026-11-05: Boot broke after the macOS-side iGPU experiments; Lexar put back on the driver config
+- A Claude session running inside macOS added things to the Lexar: `hidpi`, `tune`, `IGPUProbe.kext` (`-igpuprobe`), Bluetooth (IntelBTPatcher 2.5.0 built from master, IntelBluetoothFirmware, BlueToolFixup) and finally `IGPUScanout.kext` with `-igpuscanout`. After that macOS no longer booted.
+- All five OpenCore logs since then reach `EXITBS:START`, so OpenCore is fine and the stall is in the kernel or later.
+- **Restored** `config.plist` = the session's `config-nvidia.plist`: NullMoth driver plus `nvfbhidpi=1`; no iGPU kexts, no Bluetooth, ocvalidate clean. The broken one is kept as `config-broken-igpuscanout.plist`. Nothing on the Samsung was touched.
