@@ -375,3 +375,9 @@
   - HideAuxiliary on; picker 5 s.
 - The old stick keeps recovery mode as a fallback. `tools/go` now also turns sleep off (`pmset -a sleep 0 standby 0 hibernatemode 0 powernap 0 disksleep 0`) and saves `sw_vers`, `pmset` and a system_profiler summary.
 - **Picker stuck (2026-11-05):** the macOS-mode picker on the Lexar showed, ignored the keyboard and never timed out. Its log was empty again (power cut before the flush). Now **ShowPicker false** (OpenCore boots the default entry, the macOS Installer, with no input) and **KeySupport false** (use the firmware's keyboard input instead of OpenCore's own driver) in both modes.
+
+## 2026-11-05: **macOS Tahoe installed on the Samsung and booting from it**
+- The Lexar in macOS mode (no picker) booted the macOS Installer stage and then the installed system, with no input needed.
+- The user reports: **keyboard, sound (speakers), and internet work**.
+- **The UI is very slow**, as expected: no GPU acceleration (the plain firmware framebuffer, drawn by the CPU) until the RTX 5090 driver is installed.
+- The setup assistant hung for about 15 minutes on the "Automatic Updates" screen after choosing "Download only"; the user restarted. Still to do: finish setup, then run `go` (results and sleep off).
