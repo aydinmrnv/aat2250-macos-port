@@ -1,0 +1,15 @@
+#!/bin/sh
+# Removes the NullMoth NVIDIA driver and puts the stick back on the basic-display config.
+# Run in the installed macOS:   sudo sh /Volumes/OPENCORE/gpuoff
+V=2.7.1
+S=/Volumes/OPENCORE
+[ "$(id -u)" -eq 0 ] || { echo "Run it with sudo:  sudo sh $S/gpuoff"; exit 1; }
+cd "$S" || exit 1
+W=/var/tmp/nullmoth-$V
+if [ ! -x "$W/pkgroot/uninstall.sh" ]; then
+  rm -rf "$W"; mkdir -p "$W" && tar -xzf "nvidia/nullmoth-nvidia-$V.tar.gz" -C "$W" || { echo "STOP: unpack failed"; exit 1; }
+fi
+(cd "$W/pkgroot" && ./uninstall.sh) 2>&1 | tee "$S/gpu-uninstall.txt"
+cd "$S/EFI/OC" && [ -f config-basic.plist ] && cp config-basic.plist config.plist && echo "stick back on the basic-display config"
+sync
+echo "DONE. Restart (Apple menu > Restart)."

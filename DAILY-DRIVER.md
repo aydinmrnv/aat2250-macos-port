@@ -20,7 +20,7 @@ Where the port stands, and what each remaining piece is, in the order it gets do
 |---|---|---|---|
 | 1 | **Internal disk (D:, Samsung 860 EVO)** | **VMD switched off in BIOS (2026-11-04)**: Apple's AHCI driver sees the disks directly. VMDBridge did work in boot 14 (both disks read), but Disk Utility didn't list them | install macOS |
 | 2 | **Install macOS** on D: | **done 2026-11-05** (VMD off; boots via the Lexar) | 1, plus the user's explicit go-ahead to erase D: |
-| 3 | **RTX 5090 acceleration** (native 4K@120, Metal) | `tools/make-postinstall-config.py` derives the config (AMFI, IONDRV block, IOMMU quirk) | 2; review and pin AMFIPass; install the nullmoth driver package; test BAR1 32 GB first |
+| 3 | **RTX 5090 acceleration** (native 4K@120, Metal) | NullMoth 2.7.1 + AMFIPass 1.4.1 verified and staged on the Lexar; `GPU.md` | 2; review and pin AMFIPass; install the nullmoth driver package; test BAR1 32 GB first |
 | 4 | **USB port map** (the PCH xHCI has 26 ports, macOS allows 15) | waiting for `ioreg-full.txt` | a codeless map kext (no USBToolBox: it stalled the boot) |
 | 5 | **Shut Down / restart** | boot 13: the PC appears to have powered off (user report, not certain) | confirm once more |
 | 6 | **Audio** | the dock's USB audio works in Recovery | onboard analog needs AppleHDA, which Tahoe dropped; use the dock or a USB DAC |

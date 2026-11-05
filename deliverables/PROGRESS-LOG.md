@@ -381,3 +381,11 @@
 - The user reports: **keyboard, sound (speakers), and internet work**.
 - **The UI is very slow**, as expected: no GPU acceleration (the plain firmware framebuffer, drawn by the CPU) until the RTX 5090 driver is installed.
 - The setup assistant hung for about 15 minutes on the "Automatic Updates" screen after choosing "Download only"; the user restarted. Still to do: finish setup, then run `go` (results and sleep off).
+
+## 2026-11-05: RTX 5090 driver staged (NullMoth 2.7.1, not yet installed)
+- `nullmoth-nvidia-2.7.1.tar.gz` (sha256 0b28f420…): **Ed25519 signature verified** with the release key, GitHub digest and SHA256SUMS match, and all 77 inner files OK. `install.sh` equals repo 6b4752c. The 2.6.6→2.7.1 diff adds NMXAudio (macOS 26, HDA present) and a chmod. 2B85 is on its SUPPORTED_IDS list.
+- AMFIPass 1.4.1 from OCLP payloads (commit 76516394), zip sha256 07b26614…961e, the same pin as NullMoth's 1401.
+- The 5090 BARs in macOS sit above 4 GB (BAR1 0xA0_1000_0000, 64 MB small BAR; the driver resizes it itself).
+- `config-nvidia.plist` comes from macOS mode via `tools/make-postinstall-config.py`, whose IONDRVSupport block now uses Strategy **Exclude** as the driver README asks. ocvalidate is clean.
+- On the Lexar: `nvidia/` (tarball + sig), `EFI/OC/Kexts/AMFIPass.kext`, `config-nvidia.plist`, `config-basic.plist`, and the scripts `gpu`/`gpuoff`. `gpu` switches the config only after `install.sh` succeeds. Guide: `GPU.md`.
+- The old 4 GB stick still has to be turned into the basic-display fallback (it was not plugged in).

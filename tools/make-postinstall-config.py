@@ -39,9 +39,9 @@ def main(src, dst):
     entry = next((b for b in block if b.get("Identifier") == "com.apple.iokit.IONDRVSupport"), None)
     if entry is None:
         entry = {"Arch": "Any", "Comment": "", "Identifier": "com.apple.iokit.IONDRVSupport", "MaxKernel": "",
-                 "MinKernel": "", "Strategy": "Disable"}
+                 "MinKernel": "", "Strategy": "Exclude"}
         block.append(entry)
-    entry.update({"Enabled": True, "Comment": "NVIDIA driver owns the GPU; no IONDRV framebuffer on it"})
+    entry.update({"Enabled": True, "Strategy": "Exclude", "Comment": "NVIDIA driver owns the GPU; no IONDRV framebuffer on it (driver README: Exclude)"})
 
     c["Kernel"]["Quirks"]["DisableIoMapperMapping"] = True
     amfi = [k for k in c["Kernel"]["Add"] if k["BundlePath"] == "AMFIPass.kext"]

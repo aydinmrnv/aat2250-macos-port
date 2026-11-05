@@ -1,0 +1,43 @@
+#!/bin/sh
+# Installs the NullMoth NVIDIA driver 2.7.1 from this stick, then switches the stick to the driver config.
+# Run in the installed macOS (not Recovery):   sudo sh /Volumes/OPENCORE/gpu
+# Undo:                                         sudo sh /Volumes/OPENCORE/gpuoff
+V=2.7.1
+PIN=0b28f420dbc0f8a796a8a67c60490b1909886d302fd2008ad884cc12231e7851   # nullmoth-nvidia-2.7.1.tar.gz, Ed25519-verified
+S=/Volumes/OPENCORE
+[ "$(id -u)" -eq 0 ] || { echo "Run it with sudo:  sudo sh $S/gpu"; exit 1; }
+[ -d /Users/Shared ] || { echo "Run this in the installed macOS, not in Recovery."; exit 1; }
+cd "$S" || exit 1
+
+main() {
+  echo "== $(date)  NullMoth NVIDIA $V"
+  sw_vers
+  pmset -a sleep 0 standby 0 hibernatemode 0 powernap 0 disksleep 0 2>/dev/null && echo "sleep off"
+
+  echo "== 1. check the package on the stick"
+  got=$(shasum -a 256 "$S/nvidia/nullmoth-nvidia-$V.tar.gz" | awk '{print $1}')
+  [ "$got" = "$PIN" ] || { echo "STOP: package hash $got is not the pinned $PIN; nothing was changed"; return 1; }
+  echo "package hash OK"
+
+  echo "== 2. unpack to /var/tmp"
+  W=/var/tmp/nullmoth-$V; rm -rf "$W"; mkdir -p "$W" && tar -xzf "$S/nvidia/nullmoth-nvidia-$V.tar.gz" -C "$W" || { echo "STOP: unpack failed"; return 1; }
+  cd "$W/pkgroot" && shasum -a 256 -c SHA256SUMS --quiet || { echo "STOP: a package file failed its checksum; nothing was changed"; return 1; }
+  echo "all package files OK"
+
+  echo "== 3. install (the driver's own install.sh)"
+  ./install.sh || { echo "STOP: the driver installer failed (see above). The stick config was NOT switched."; return 1; }
+
+  echo "== 4. switch the stick to the driver config"
+  cd "$S/EFI/OC" || return 1
+  [ -f config-basic.plist ] || cp config.plist config-basic.plist
+  cp config-nvidia.plist config.plist && echo "stick now uses config-nvidia (the old one is kept as config-basic.plist)"
+  kmutil showloaded --list-only 2>/dev/null | grep -i nullmoth
+  echo
+  echo "DONE. Next:"
+  echo " 1. System Settings > Privacy & Security: if it asks to allow software from NullMoth, click Allow."
+  echo " 2. Restart (Apple menu > Restart). The first start can pause up to a minute at 'PCI configuration end'."
+  echo " 3. If the screen stays black for 5 minutes: hold power, boot with the OLD 4 GB stick, run  sudo sh /Volumes/OPENCORE/gpuoff"
+}
+
+main 2>&1 | tee "$S/gpu-install.txt"
+sync
