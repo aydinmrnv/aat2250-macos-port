@@ -395,3 +395,14 @@
 - All five OpenCore logs since then reach `EXITBS:START`, so OpenCore is fine and the stall is in the kernel or later.
 - **Restored** `config.plist` = the session's `config-nvidia.plist`: NullMoth driver plus `nvfbhidpi=1`; no iGPU kexts, no Bluetooth, ocvalidate clean. The broken one is kept as `config-broken-igpuscanout.plist`. Nothing on the Samsung was touched.
 - **Bluetooth added back at the user's request:** `config.plist` = `config-nvidia.plist` plus BlueToolFixup 2.7.2, IntelBluetoothFirmware 2.4.0 and IntelBTPatcher 2.5.3 (built from master by the macOS-side session; not pinned by this project). No iGPU kexts. ocvalidate clean. Also saved as `config-nvidia-bluetooth.plist`; the fallback without Bluetooth is `config-nvidia.plist`.
+
+## 2026-11-05: Real cause of the boot failure: IntelBTPatcher 2.5.3, not the iGPU kext
+- Read the Mac data volume from Windows, read-only: a throwaway WSL distro `apfsreader` (Ubuntu 24.04 base image), apfs-fuse @66b86bd5, `wsl --mount --bare` on the Samsung. No FileVault.
+- Copied to `private`/`from-mac`: the macOS session's `igpu-driver/` (IGPUProbe, IGPUScanout, lgmirror, lgmst, igpuctl, README), `~/bin`, its EFI backup and DiagnosticReports.
+- **Timeline** (Mac time PST; OpenCore log names use the RTC, which is PST+8):
+  - The boot at 12:32 (BT + probe) ran for 4.6 h. Then at 17:35 a **panic**: WindowServer watchdog, `WindowServer failed to spawn with error 5`, with root disk errors **"Could not recover SATA HDD after 5 attempts"**. The Samsung dropped off AppleAHCIPort. Windows reports it healthy; cause still open.
+  - Boots at 17:35, 17:46 and 17:58 **with IGPUScanout 0.0.3 and `-igpuscanout`** reached the desktop (diag reports written, then shutdown stalls).
+  - At 18:50 the session replaced IntelBTPatcher 2.5.0 with **2.5.3**, keeping a full EFI backup first. The 19:00 boot failed.
+  - The backup EFI and the failing stick differ **only** in `IntelBTPatcher.kext`.
+- **Fix:** the stick now equals that backup (IntelBTPatcher 2.5.0, IGPUScanout, IGPUProbe, Bluetooth, NVIDIA). 2.5.3 is kept in `Kexts-backup/IntelBTPatcher-2.5.3.kext`; the config is also saved as `config-working-igpu-bt.plist`.
+- **Open:** the 17:35 SATA root-disk drop (AppleAHCIPort, Samsung 860 EVO on the Arrow Lake PCH 7F62).
