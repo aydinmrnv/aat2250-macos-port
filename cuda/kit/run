@@ -1,0 +1,23 @@
+#!/bin/sh
+# CUDA-on-macOS test kit (nvrmcu 0.1). Run on the Hackintosh, from Terminal, with the desktop up:
+#     sh /Volumes/OPENCORE/cuda/run
+# Read-only for the system: nothing is installed, no setting changes. The tests open an ordinary GPU client, the same
+# kind every Metal app opens through NullMoth's driver, use some video memory, and free it when they exit.
+# Results land next to this script, so Windows-side Claude can read them from the stick.
+D=$(cd "$(dirname "$0")" && pwd)
+OUT="$D/results-$(date +%Y%m%d-%H%M%S).txt"
+cd "$D"
+{
+  echo "== $(date)  $(sw_vers -productVersion) $(sw_vers -buildVersion)  $(uname -m)"
+  echo "== kext:"; kextstat 2>/dev/null | grep -i -E "nullmoth|nvrm|nvaccel" || echo "(none listed)"
+  echo; echo "== 1. driver layer (nvrmcu-selftest)"
+  ./nvrmcu-selftest; r1=$?
+  if [ $r1 -ne 0 ]; then echo; echo "== 1b. again, with every RM call traced"; NVRMCU_TRACE=1 ./nvrmcu-selftest 2>&1 | tail -120; fi
+  echo; echo "== 2. CUDA runtime + cuBLAS (cuda-selftest)"
+  ./cuda-selftest; r2=$?
+  if [ $r2 -ne 0 ] && [ $r1 -eq 0 ]; then echo; echo "== 2b. again, traced"; NVRMCU_TRACE=1 TINYCUDART_TRACE=1 ./cuda-selftest 2>&1 | tail -150; fi
+  echo; echo "== summary: driver $( [ $r1 -eq 0 ] && echo PASS || echo FAIL ), cuda $( [ $r2 -eq 0 ] && echo PASS || echo FAIL )"
+} 2>&1 | tee "$OUT"
+sync
+echo
+echo "saved $OUT"
