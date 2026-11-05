@@ -16,6 +16,13 @@ cd "$D"
   echo; echo "== 2. CUDA runtime + cuBLAS (cuda-selftest)"
   ./cuda-selftest; r2=$?
   if [ $r2 -ne 0 ] && [ $r1 -eq 0 ]; then echo; echo "== 2b. again, traced"; NVRMCU_TRACE=1 TINYCUDART_TRACE=1 ./cuda-selftest 2>&1 | tail -150; fi
+  # stage 3, once it has been built: real CUDA source (vecadd.cu), then llama.cpp's CUDA backend
+  if [ -x ./vecadd ] && [ $r2 -eq 0 ]; then echo; echo "== 3. vecadd (CUDA C++ compiled with nvcc)"; ./vecadd; fi
+  M=$(ls "$D"/*.gguf 2>/dev/null | head -1)
+  if [ -x ./llama-bench-cuda ] && [ -n "$M" ] && [ $r2 -eq 0 ]; then
+    echo; echo "== 4. llama-bench on the GPU: $(basename "$M")"
+    ./llama-bench-cuda -m "$M" -ngl 99 -p 512 -n 128 -r 2
+  elif [ -x ./llama-bench-cuda ]; then echo; echo "== 4. llama-bench skipped: put a .gguf model in $D to run it"; fi
   echo; echo "== summary: driver $( [ $r1 -eq 0 ] && echo PASS || echo FAIL ), cuda $( [ $r2 -eq 0 ] && echo PASS || echo FAIL )"
 } 2>&1 | tee "$OUT"
 sync

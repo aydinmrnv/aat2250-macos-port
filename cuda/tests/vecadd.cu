@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 __global__ void vecadd(const float *a, const float *b, float *c, int n) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;

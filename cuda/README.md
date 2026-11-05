@@ -5,7 +5,7 @@ This folder is an attempt at real CUDA on the RTX 5090 under macOS on this PC (a
 **Status (2026-11-05):**
 - **Built:** stages 1 and 2 are built and committed. A ready-to-run test kit is in `/cuda` on the OPENCORE stick.
 - **Untested on hardware:** nothing has run on the card yet. Every test needs macOS booted with the NVIDIA driver up.
-- **Blocked:** stage 3 (llama.cpp) is blocked on running NVIDIA's compiler, which needs the owner's approval.
+- **Stage 3 (llama.cpp):** everything except the GPU-code compile is built. Running NVIDIA's compiler needs the owner's approval.
 
 ## Prior work
 - **[macuda](https://github.com/agrogov/macuda)** (MIT, September 2026) runs unmodified llama.cpp and stable-diffusion.cpp with their CUDA backends on an RTX 5090.
@@ -72,8 +72,23 @@ sh /Volumes/OPENCORE/cuda/run
 
 The results go to the stick. If anything fails, the run repeats it with every RM call traced (`NVRMCU_TRACE=1`).
 
-## Stage 3: llama.cpp (blocked)
-ggml's CUDA backend has to be compiled for sm_120a with NVIDIA's `nvcc`, which only runs on Linux.
-- **Already done:** NVIDIA's official CUDA 13.0.3 compiler is downloaded and verified in a throwaway WSL distro (`apfsreader`, `/opt/cuda-13.0`).
-- **Blocked:** running it is a downloaded program, which needs the owner's approval.
-- **After approval:** device code is built with nvcc in WSL, and host code with Apple clang (`-x cuda --cuda-host-only`, tested and working). Then ggml-cuda is linked against this stack, as macuda does. llama.cpp is checked out at macuda's pinned commit `ad6c668` plus `2f53959`.
+## Stage 3: llama.cpp (everything built except the nvcc step)
+llama.cpp is checked out at macuda's pinned commit `ad6c668`, plus `2f53959`.
+
+| Step | Status |
+|---|---|
+| llama.cpp for x86_64 macOS with Apple clang and no CMake (`build-llama.py` reads the tree's own CMake lists) | **Builds.** 265 files; `llama-bench-cpu` links |
+| Host halves of all 188 ggml-cuda files (`host-cu.sh`, `ggml-cuda-host.sh`) | **All 188 compile**, here against placeholder fatbins |
+| CUDA link: llama-bench + ggml-cuda + this stack | **Links with no missing symbols.** Every `cuda*` and `cublas*` function ggml uses is provided |
+| Device halves: nvcc, sm_120a fatbins (`wsl/nvcc-all.sh`) | **Not run.** NVIDIA's compiler is downloaded and verified in a throwaway WSL distro; running it needs the owner's approval |
+
+Making Apple clang 21 compile CUDA 13 host code for x86_64 took three fixes in `host-cu.sh`:
+- **`-D_ALLOW_UNSUPPORTED_LIBCPP`:** NVIDIA's opt-out of its "libc++ on x86" refusal.
+- **Empty `texture_fetch_functions.h`:** clang's wrapper still includes this legacy header, which CUDA 13 removed.
+- **Empty `curand_mtgp32_kernel.h`:** clang includes it only to neutralise it, and there's no cuRAND here.
+
+**After approval:**
+```bash
+MAC_HOST=user@host MAC_KEY=~/.ssh/key sh stage3.sh
+```
+`stage3.sh` runs nvcc, builds the host halves around the fatbins, links `llama-bench-cuda` and `vecadd`, signs them, and puts them on the stick. The kit's `run` then runs them, and llama-bench too if a `.gguf` model is in the folder.
