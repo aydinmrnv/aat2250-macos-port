@@ -419,3 +419,11 @@
 - **Login screen in a quarter of the panel:** NVRMFB keeps the firmware's 2560x1440 boot raster until WindowServer applies the user's 1920x1080@2x mode at login. No driver switch exists; firmware 4K output is a later experiment.
 - **Icons:** NullMoth issue #89 (Icon Composer icons on macOS 26). **Minecraft:** OpenGL is translated (issues #261/#306).
 - **Clock:** in-boot timestamps jump by 8 h, so the RTC holds local time (Windows default) while macOS reads it as UTC.
+
+## 2026-11-05 — boot fix copied to the Lexar
+
+- Backed up the stick's config.plist (= config-working-igpu-bt) as `EFI/OC/config-before-nvrmsettle.plist`.
+- New `EFI/OC/config.plist` = config-nvrmsettle (working iGPU/BT config + `nvrmsettle=10000`, boot-guard NVRAM key cleared each boot).
+- Also copied, not active yet: `config-usbmap.plist`, `Kexts/USBMapAAT2250.kext`, `/usbmap` script (`sh /Volumes/OPENCORE/usbmap`, `... usbmap off` to undo).
+- All files verified with cmp/diff against staging.
+- Rollback: on Windows copy `config-before-nvrmsettle.plist` over `config.plist`.
