@@ -8,6 +8,17 @@ This installs macOS on the **Samsung SSD 860 EVO 500GB** (Windows' D:).
 - **macOS will also see the Windows NVMe (SK hynix 2 TB).** Don't touch it. OpenCore's ScanPolicy never offers it as a boot entry.
 - **Windows' own recovery (WinRE) is on the NVMe.** The Samsung's old Recovery and EFI partitions are leftovers that Windows doesn't use.
 
+> ## Resuming an install (2026-11-05)
+> The first stage ("Installing… 36 min") ran inside Recovery and copied macOS to the Samsung. The stick was still in recovery mode, so the restart that should have started **macOS Installer** from the Samsung went back to Recovery, which then slept overnight and couldn't wake.
+>
+> **The Lexar stick is now in macOS mode:**
+> - OpenCore lists only APFS/HFS volumes. Windows boot files (FAT/ESP) and the NVMe never appear, and Recovery entries are hidden.
+> - The menu shows for 5 seconds, then starts **macOS Installer** (later **Macintosh HD**) by itself.
+>
+> Use **only the Lexar**. Unplug the old 4 GB stick: both are named OPENCORE, and the scripts expect one. Then power on and let it run. **Stay near it until you reach the desktop.** Sleep doesn't work yet, so don't let it sit idle at the setup assistant. When you reach the desktop, run `sudo sh /Volumes/OPENCORE/go`: it saves results **and turns sleep off for good**.
+>
+> The old 4 GB stick stays in recovery mode, as the fallback for booting Recovery.
+
 > ## ⚠️ Two SATA disks will appear. Erase only the Samsung.
 > | Disk | Size | What to do |
 > |---|---|---|

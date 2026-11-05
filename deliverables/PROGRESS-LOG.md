@@ -365,3 +365,12 @@
 - **The user switched SATA/NVMe Operation to AHCI/NVMe in the BIOS**, using the Safe Mode route: `bcdedit /set "{current}" safeboot minimal`, the BIOS change, then `bcdedit /deletevalue "{current}" safeboot`. In PowerShell `{current}` must be quoted.
 - **Windows boots normally:** "Standard SATA AHCI Controller" 8086:7F62 and "Standard NVM Express Controller" for the SK hynix.
 - **Config:** VMDProbe and VMDBridge are disabled and `vmdbridge`/`-vmdprobe` are gone from boot-args; recovery and install modes are otherwise unchanged (ocvalidate clean). The VMD work stays in the repo for anyone who has to keep VMD on.
+
+## 2026-11-05: Install stage 1 done; stage 2 needs the stick in macOS mode
+- **What happened overnight:** the Samsung now holds an APFS container (464 GB, partition 4). The old Recovery/EFI/MSR partitions 1–3 were kept, because only the data partition was erased.
+  - `installmode` was never run, so the stick stayed in recovery mode (USB only), and the installer's restart into "macOS Installer" returned to Recovery.
+  - Recovery then went to sleep with the display off and could not wake (the firmware has S0ix only).
+- **New stick:** a Lexar 64 GB (FAT32, MBR, labelled OPENCORE) with the same EFI, kexts and recovery image (verified with `diff -r`/`cmp`). Its factory DataShield files are left in place. Its `config.plist` is **macOS mode**:
+  - ScanPolicy 0x370303: FS lock with APFS+HFS only; SATA, SAS, SCSI, ATAPI and USB; no NVMe. The Samsung's leftover Windows ESP can no longer create a Windows entry.
+  - HideAuxiliary on; picker 5 s.
+- The old stick keeps recovery mode as a fallback. `tools/go` now also turns sleep off (`pmset -a sleep 0 standby 0 hibernatemode 0 powernap 0 disksleep 0`) and saves `sw_vers`, `pmset` and a system_profiler summary.

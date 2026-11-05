@@ -86,12 +86,15 @@ plutil -replace PlatformInfo.Generic.ROM -data "$(head -c 6 /dev/urandom | base6
 
 # Two modes (tools/installmode, tools/recoverymode swap them on the stick):
 #  recovery: USB devices only, no picker; boots the Recovery image on the stick, never another OS.
-#  install:  also SATA/SAS/SCSI/ATAPI (never NVMe), picker shown for 10 s; boots macOS from the Samsung.
+#  install:  APFS/HFS volumes only (no FAT, ESP or NTFS, so no Windows entries) on SATA/SAS/SCSI/ATAPI/USB
+#            (never NVMe), picker shown for 5 s, auxiliary entries hidden; boots macOS from the Samsung.
 plutil -replace Misc.Security.ScanPolicy -integer 2097154 "$CFG"
 plutil -replace Misc.Boot.ShowPicker -bool NO "$CFG"
 cp "$CFG" "$OUT/EFI/OC/config-recovery.plist"
 cp "$CFG" "$OUT/EFI/OC/config-install.plist"
-plutil -replace Misc.Security.ScanPolicy -integer 3604482 "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Security.ScanPolicy -integer 3605251 "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Boot.HideAuxiliary -bool YES "$OUT/EFI/OC/config-install.plist"
+plutil -replace Misc.Boot.Timeout -integer 5 "$OUT/EFI/OC/config-install.plist"
 plutil -replace Misc.Boot.ShowPicker -bool YES "$OUT/EFI/OC/config-install.plist"
 cp "$REPO/tools/go" "$REPO/tools/installmode" "$REPO/tools/recoverymode" "$OUT/"
 
