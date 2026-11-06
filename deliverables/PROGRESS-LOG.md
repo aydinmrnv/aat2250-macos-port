@@ -440,3 +440,7 @@
 - Every frozen boot (08:41, 11:31 and 11:56 UTC) came after Logitech Options+ was installed at 07:58 UTC; every boot before it worked. Each saved log ends about 1 s after backgroundtaskmanagement registers com.logi.optionsplus.updater (RunAtLoad and KeepAlive). This is a correlation, not proof.
 - The old 4 GB stick now holds only a 109 MB partition that Windows can't read, so its Recovery image is gone.
 - The Lexar's active config is config-recovery-samsung.plist: config-install plus NVRAM `recovery-boot-mode=unused`, which should boot the Samsung's Recovery. `sh /Volumes/OPENCORE/nologi` moves the three Logitech plists to /Users/Shared/logi-disabled, clears the flag and restores config-normal. `logiback` undoes it.
+- 21:35 UTC: Recovery via `recovery-boot-mode=unused` worked. nologi moved all three Logitech plists (log on the stick). The next normal boot still froze, so Logitech is ruled out.
+- Also ruled out: a macOS update (boot.efi 583~6005, kernel 25.6.0 Oct 12 in good and frozen boots alike) and the display prefs (one 4K@120 HiDPI set).
+- New lead: in good boots, `>os_pci_init_handle` is followed by "boot screen: copied 2560x1440 ... from the console at 0xA018000000 in 4109 ms". Frozen boots' logs end in that step.
+- The test config is config-nobootscreen.plist = config-normal plus `-nvrmnobootscreen` (skip the boot-screen snapshot). It is the stick's active config; config-normal.plist is kept for undo.
