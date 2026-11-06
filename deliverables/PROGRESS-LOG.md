@@ -427,3 +427,10 @@
 - Also copied, not active yet: `config-usbmap.plist`, `Kexts/USBMapAAT2250.kext`, `/usbmap` script (`sh /Volumes/OPENCORE/usbmap`, `... usbmap off` to undo).
 - All files verified with cmp/diff against staging.
 - Rollback: on Windows copy `config-before-nvrmsettle.plist` over `config.plist`.
+
+## 2026-11-05 evening - boot with nvrmsettle still froze; test without the iGPU experiment
+- The 11:31 boot used `nvrmsettle=10000` (OpenCore log) and froze after "disallowing unsupported code signature page shift: 14", which is further than before.
+- The unified log (read from Windows) ends 34.6 s in, 0.3 s after NVRM's `>os_pci_init_handle`. The later lines were never flushed to disk.
+  - In working boots the driver copies the boot screen about 4 s after that point. This boot never logged that step.
+- The page-shift message is a refused 16 KB-page signature (Apple-silicon signing). The tools built on the Mac Studio (igpuctl, lgmirror, lgmst, CUDA tests) all use 4 KB pages, so it isn't one of ours.
+- Both boots that froze had `-igpuprobe -igpuscanout`. The stick's config.plist is now config-noigpu.plist: the same config with those two flags removed (ocvalidate clean). The previous config is kept as config-with-igpu.plist.
