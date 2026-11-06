@@ -444,3 +444,6 @@
 - Also ruled out: a macOS update (boot.efi 583~6005, kernel 25.6.0 Oct 12 in good and frozen boots alike) and the display prefs (one 4K@120 HiDPI set).
 - New lead: in good boots, `>os_pci_init_handle` is followed by "boot screen: copied 2560x1440 ... from the console at 0xA018000000 in 4109 ms". Frozen boots' logs end in that step.
 - The test config is config-nobootscreen.plist = config-normal plus `-nvrmnobootscreen` (skip the boot-screen snapshot). It is the stick's active config; config-normal.plist is kept for undo.
+- 21:46 UTC: -nvrmnobootscreen froze too, earlier (on the ACMTRM lines) after 5-10 min of waiting; its tracev3 is truncated and won't parse. So the frozen screen only marks when the display handoff happened; it isn't a fixed point.
+- My mistake: staging `nullmoth-nv-starts` in NVRAM Delete (with nvrmsettle) defeats NullMoth's boot guard (nvrm_off.h: two starts without a lit display turn the driver off for the next boot). That is why the failures kept repeating instead of falling back.
+- Active config is now config-nvoff.plist = config-normal + `-nvoff` (NullMoth's off switch) + the IONDRVSupport block disabled, so the firmware framebuffer can show a desktop. Purpose: get the desktop back and diagnose NVRM live.
