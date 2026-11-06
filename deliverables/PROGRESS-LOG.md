@@ -434,3 +434,9 @@
   - In working boots the driver copies the boot screen about 4 s after that point. This boot never logged that step.
 - The page-shift message is a refused 16 KB-page signature (Apple-silicon signing). The tools built on the Mac Studio (igpuctl, lgmirror, lgmst, CUDA tests) all use 4 KB pages, so it isn't one of ours.
 - Both boots that froze had `-igpuprobe -igpuscanout`. The stick's config.plist is now config-noigpu.plist: the same config with those two flags removed (ocvalidate clean). The previous config is kept as config-with-igpu.plist.
+
+## 2026-11-05 night - Logitech Options+ suspected; Recovery set up to disable it
+- The no-iGPU boot (19:55) froze too, so the iGPU flags aren't the cause. They are back (the normal config is config-normal.plist = config-nvrmsettle plus `recovery-boot-mode` in NVRAM Delete).
+- Every frozen boot (08:41, 11:31 and 11:56 UTC) came after Logitech Options+ was installed at 07:58 UTC; every boot before it worked. Each saved log ends about 1 s after backgroundtaskmanagement registers com.logi.optionsplus.updater (RunAtLoad and KeepAlive). This is a correlation, not proof.
+- The old 4 GB stick now holds only a 109 MB partition that Windows can't read, so its Recovery image is gone.
+- The Lexar's active config is config-recovery-samsung.plist: config-install plus NVRAM `recovery-boot-mode=unused`, which should boot the Samsung's Recovery. `sh /Volumes/OPENCORE/nologi` moves the three Logitech plists to /Users/Shared/logi-disabled, clears the flag and restores config-normal. `logiback` undoes it.
