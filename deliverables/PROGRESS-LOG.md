@@ -455,3 +455,6 @@
 - NullMoth's NVAccel 2.7.1 (nvrm-accel.cpp) gates only head 4 (`i == 4 && !gNvIgpu`). Its comment says the first virtual-panel test froze the machine at boot. LGFB publishes heads 1 and 2, so they join during boot unguarded.
 - Fix under test: config-lgfb-late.plist = config-lgfb-p2 minus `lgfb=6` (no boot-time attach). After login, `sudo sh /Volumes/OPENCORE/lgfb-on` runs `debug.nmintelfb_attach=6` then `debug.nvaccelfb=3`; then log out and in and run `lgmirror --native`.
 - Separate from LGFB: the 2026-11-05 freezes (no LGFB yet) all came after Windows warm restarts. Today's cold start worked. Rule: shut down fully before booting macOS.
+- The lgfb-late boot (from a full shutdown) froze too. Its log ends at 34.6 s, right after NVRM's `>os_pci_init_handle`, before LGFB can attach (boot guard start 2). The late attach alone isn't the fix.
+- The Dell is on head 0 in every good boot (dpy 0x200 -> head 0), so nvfbheads=1 doesn't leave it dark. The IGPUScanout -igpufb panels are 2 x ~66 MB of non-contiguous wired memory, not a contiguous grab.
+- One-variable test: config-lgtest-nofb.plist = lgfb-late minus -igpufb, plus nullmoth-nv-starts in NVRAM Delete (so the tripped guard doesn't turn the driver off). It is the active config.
