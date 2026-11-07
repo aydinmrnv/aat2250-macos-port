@@ -449,3 +449,9 @@
 - Active config is now config-nvoff.plist = config-normal + `-nvoff` (NullMoth's off switch) + the IONDRVSupport block disabled, so the firmware framebuffer can show a desktop. Purpose: get the desktop back and diagnose NVRM live.
 - 22:07 UTC: the -nvoff boot reached the desktop (basic graphics), so macOS itself is healthy and the hang is in NVRM's display bring-up.
 - Pattern: every working boot was a macOS-to-macOS restart; every frozen boot came after a Windows warm restart, with the 5090 still powered and Windows' driver having left its GSP firmware resident. Test: a cold start from full power-off with the exact working-era config (now config.plist; also config-working-era.plist), which keeps the boot guard active. config-nvoff.plist stays as the fallback.
+
+## 2026-11-06 - LG native displays (LGFB): why the boot froze
+- The 21:29 boot (config-lgfb-p2, LGFB in the AuxKC since 21:27) logged to 39.2 s: NVRM copied the boot screen, moved BAR1 to 8 GB at 0x3FC00000000, scheduled go(2) at +0.5 s, NVAccel armed, then nothing. The 20:50 boot without LGFB worked.
+- NullMoth's NVAccel 2.7.1 (nvrm-accel.cpp) gates only head 4 (`i == 4 && !gNvIgpu`). Its comment says the first virtual-panel test froze the machine at boot. LGFB publishes heads 1 and 2, so they join during boot unguarded.
+- Fix under test: config-lgfb-late.plist = config-lgfb-p2 minus `lgfb=6` (no boot-time attach). After login, `sudo sh /Volumes/OPENCORE/lgfb-on` runs `debug.nmintelfb_attach=6` then `debug.nvaccelfb=3`; then log out and in and run `lgmirror --native`.
+- Separate from LGFB: the 2026-11-05 freezes (no LGFB yet) all came after Windows warm restarts. Today's cold start worked. Rule: shut down fully before booting macOS.
