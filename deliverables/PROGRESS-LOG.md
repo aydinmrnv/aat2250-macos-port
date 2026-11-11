@@ -459,3 +459,9 @@
 - The Dell is on head 0 in every good boot (dpy 0x200 -> head 0), so nvfbheads=1 doesn't leave it dark. The IGPUScanout -igpufb panels are 2 x ~66 MB of non-contiguous wired memory, not a contiguous grab.
 - One-variable test: config-lgtest-nofb.plist = lgfb-late minus -igpufb, plus nullmoth-nv-starts in NVRAM Delete (so the tripped guard doesn't turn the driver off). It is the active config.
 - 2026-11-07 03:53 and 03:58: lgtest-nofb froze too. Next: config-lgtest-base.plist = config-current-backup (which booted 2026-11-06 20:51: nvfbheads=4, IGPUScanout 0.0.3, no lgfb) plus the counter reset. Since that good boot, the only change is LGFB in the AuxKC (21:27). If base boots, the culprit is nvfbheads=1 or IGPUScanout-004; if it freezes, it is LGFB's presence (or the general freeze).
+
+## 2026-11-11 - display never comes up after the 2026-11-10 panic; NullMoth 2.9 update
+- 2026-11-10 15:23: watchdog panic. logd's firehose.io queue was unresponsive for 120 s (disk writes stalled) after 23 h up; the SATA stall seen once on 2026-11-04 is the likely cause.
+- After it, on 2.8.1: NVRM go(2) is fine and publishes 4 NVRMDisplay nubs, but NVRMFB never reaches kapiInit's "device:" line; heads 0x0, display PARTIAL. bootguard.log still counted it as a good desktop, so macOS ran with the screen frozen.
+- NullMoth 2.9 changelog: GPU quiesced and BARs handed back at shutdown/restart; a stuck GSP times out instead of holding the system; a failed boot mode set no longer kills the framebuffer; a panicking start counts.
+- With the user's go-ahead, the SSD's live EFI/OC/config.plist is now config-nvoff.plist (live config + -nvoff + IONDRVSupport block disabled) for one boot to install 2.9. Backup: config-before-nvoff.plist. /Volumes/EFI/nvon restores it.
